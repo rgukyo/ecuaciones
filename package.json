@@ -1,0 +1,8 @@
+{
+  "name": "ecuaciones",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/generators.test.js tests/smoke.test.js"
+  }
+}
