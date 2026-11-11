@@ -375,54 +375,74 @@ table.data th { color: var(--primary); }
 .sheet-sub { margin: 0; color: #555; font-size: 0.98rem; line-height: 40px; }
 .sheet-row {
   display: grid;
-  grid-template-columns: 6.1rem minmax(0, 1fr);
-  align-items: center;
-  min-height: 40px;
-  column-gap: 0.35rem;
+  grid-template-columns: 6.7rem minmax(0, 1fr);
+  align-items: end;
+  height: 40px;
+  column-gap: 0.7rem;
 }
 .sheet-label {
   text-align: right;
   font-style: italic;
   font-size: 0.95rem;
   color: #333;
-  line-height: 1.15;
+  line-height: 40px;
+  padding-right: 0.15rem;
+  white-space: nowrap;
 }
 .sheet-label-lg { font-style: normal; font-size: 1.15rem; font-weight: 700; }
 .sheet-math {
   font-family: "Kalam", "Segoe UI", sans-serif;
   font-weight: 700;
+  font-size: 26px;
   color: #1a4fa3;
   white-space: nowrap;
-  line-height: 1.1;
+  line-height: 40px;
+  padding-left: 0.2rem;
 }
 .sheet-note {
   display: block;
   margin: 0;
-  padding: 0.35rem 2.5rem 0.45rem 0.15rem;
+  padding: 0 2.6rem 0 0.15rem;
   color: #333;
   font-size: 1rem;
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 40px;
   overflow-wrap: normal;
   word-break: normal;
 }
-.k-var { color: #1a4fa3; border-bottom: 2.5px solid #1a4fa3; }
-.k-sum { color: #f57c00; border-bottom: 2.5px solid #f57c00; }
+.sheet-note .n-sum,
+.sheet-note .n-sub,
+.sheet-note .n-mul { border-bottom: 0; text-decoration: none; }
+.n-sum { color: #f57c00; font-weight: 700; }
+.n-sub { color: #d32f2f; font-weight: 700; }
+.n-mul { color: #7b1fa2; font-weight: 700; }
+.k-var { color: #1a4fa3; }
+.k-sum { color: #f57c00; }
 .k-sub { color: #d32f2f; font-weight: 700; }
-.k-mul { color: #7b1fa2; border-bottom: 2.5px solid #7b1fa2; }
-.k-res { color: #2e7d32; border-bottom: 2.5px solid #2e7d32; }
-.k-eq { color: #333; border-bottom: 0; font-weight: 700; }
-.k-txt { color: #333; border-bottom: 0; font-weight: 400; }
-.oval { position: relative; display: inline-block; z-index: 1; }
+.k-mul { color: #7b1fa2; }
+.k-res { color: #2e7d32; }
+.k-eq { color: #333; font-weight: 700; }
+.k-txt { color: #333; font-weight: 400; }
+.sheet-math .u {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: baseline;
+  border-bottom: 3px solid currentColor;
+  padding: 0 0 1px;
+  margin: 0;
+}
+.oval { position: relative; display: inline-block; z-index: 1; margin: 0 0.15em; }
+.oval .u { border-bottom: 0; }
 .oval::before {
   content: "";
   position: absolute;
-  left: -0.32em;
-  right: -0.32em;
-  top: -0.18em;
-  bottom: -0.12em;
+  left: -0.08em;
+  right: -0.12em;
+  top: 0.02em;
+  bottom: -0.08em;
   border: 2.5px solid var(--oval, #d32f2f);
   border-radius: 50%;
+  pointer-events: none;
 }
 .oval-sub { --oval: #d32f2f; }
 .oval-mul { --oval: #7b1fa2; }
@@ -437,21 +457,31 @@ table.data th { color: var(--primary); }
   overflow: visible;
   pointer-events: none;
 }
-.aside { color: #2e7d32; font-size: 0.72em; font-weight: 700; margin-left: 0.35rem; }
+.aside { color: #2e7d32; font-size: 14px; font-weight: 700; margin-left: 0.45rem; border-bottom: 0; }
+.sheet-aside {
+  margin: 0;
+  padding: 0 0.2rem 0 7.4rem;
+  color: #2e7d32;
+  font-family: "Kalam", "Segoe UI", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 40px;
+  height: 40px;
+}
+.sheet-result { height: 80px; align-items: center; }
 .result-oval {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 4.6rem;
-  margin: 0.35rem 0;
-  padding: 0.15rem 0.85rem 0.2rem;
+  display: inline-block;
+  width: fit-content;
+  min-width: 0;
+  margin: 0;
+  padding: 0.42rem 0.95rem 0.5rem;
   border: 3px solid #d32f2f;
-  border-radius: 999px;
+  border-radius: 50%;
   color: #1a4fa3;
   font-family: "Kalam", "Segoe UI", sans-serif;
-  font-size: 1.85rem;
+  font-size: 2rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1;
   background: transparent;
 }
 .sheet-check {

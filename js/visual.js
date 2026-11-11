@@ -417,17 +417,18 @@ function lexRaw(raw) {
   return tokens;
 }
 
-function tokenHtml(token, kind) {
+function tokenHtml(token, kind, underline = true) {
+  const mark = underline && kind !== "eq" && kind !== "sub" && kind !== "txt" ? " u" : "";
   if (token.type === "frac") {
-    return `<span class="k-${kind}">${fracHtml(token.n, token.d)}</span>`;
+    return `<span class="k-${kind}${mark}">${fracHtml(token.n, token.d)}</span>`;
   }
-  return `<span class="k-${kind}">${esc(token.text || "")}</span>`;
+  return `<span class="k-${kind}${mark}">${esc(token.text || "")}</span>`;
 }
 
 function mathHtml(text, options = {}) {
   const { circle = false, sole = false } = options;
   if (sole && /^[−-]?\d+(\/\d+)?$/.test(plain(text).trim())) {
-    return `<span class="k-res">${esc(plain(text).trim())}</span>`;
+    return `<span class="k-res u">${esc(plain(text).trim())}</span>`;
   }
   const chunks = chunksOf(text);
   let prevOp = "";
@@ -452,7 +453,12 @@ function mathHtml(text, options = {}) {
         if (next && (next.type === "num" || next.type === "var" || next.type === "frac")) {
           const opKind = token.text === "−" ? "sub" : token.text === "+" ? "sum" : "mul";
           const numKind = token.text === "×" || token.text === "÷" || token.text === "·" ? "mul" : token.text === "+" || token.text === "−" ? "sum" : "var";
-          piece += tokenHtml(token, opKind) + spaces + tokenHtml(next, numKind);
+          const nextHtml = next.type === "frac" ? fracHtml(next.n, next.d) : esc(next.text || "");
+          if (opKind === numKind) {
+            piece += `<span class="k-${numKind} u">${esc(token.text)}${spaces}${nextHtml}</span>`;
+          } else {
+            piece += tokenHtml(token, opKind, false) + spaces + tokenHtml(next, numKind, true);
+          }
           i += spaces ? 2 : 1;
           prevOp = token.text;
           continue;
@@ -492,11 +498,11 @@ function mathHtml(text, options = {}) {
 
 function noteHtml(text) {
   let html = esc(text);
-  html = html.replace(/(\+[0-9]+(?:[a-z²]+)?)/gi, '<span class="k-sum">$1</span>');
-  html = html.replace(/(−\s*[0-9]+(?:[a-z²]+)?)/gi, '<span class="k-sub">$1</span>');
-  html = html.replace(/\b(restando|resta)\b/gi, '<span class="k-sub">$1</span>');
-  html = html.replace(/\b(sumando|suma)\b/gi, '<span class="k-sum">$1</span>');
-  html = html.replace(/\b(dividiendo|multiplicando|multiplicación|división|divide|multiplica)\b/gi, '<span class="k-mul">$1</span>');
+  html = html.replace(/(\+[0-9]+(?:[a-z²]+)?)/gi, '<span class="n-sum">$1</span>');
+  html = html.replace(/(−\s*[0-9]+(?:[a-z²]+)?)/gi, '<span class="n-sub">$1</span>');
+  html = html.replace(/\b(restando|resta)\b/gi, '<span class="n-sub">$1</span>');
+  html = html.replace(/\b(sumando|suma)\b/gi, '<span class="n-sum">$1</span>');
+  html = html.replace(/\b(dividiendo|multiplicando|multiplicación|división|divide|multiplica)\b/gi, '<span class="n-mul">$1</span>');
   return html;
 }
 
@@ -542,9 +548,13 @@ function arrowKind(row, prevExpr) {
   return "";
 }
 
-function fontPx(text) {
-  const length = Math.max(plain(text).length, 1);
-  return Math.max(14, Math.min(28, Math.floor(168 / (length * 0.56))));
+const MATH_PX = 26;
+
+function asideFits(mathText, aside) {
+  if (!aside) return false;
+  const mathW = plain(mathText).length * MATH_PX * 0.58;
+  const noteW = aside.length * 14 * 0.55;
+  return mathW + noteW + 10 < 150;
 }
 
 function equationRow(row, label, circle, aside) {
@@ -563,8 +573,11 @@ function equationRow(row, label, circle, aside) {
   } else {
     math = mathHtml(text, { circle: circle === "tag", sole: false });
   }
-  const extra = aside ? `<span class="aside">${esc(aside)}</span>` : "";
-  return `<div class="sheet-row"><span class="sheet-label">${esc(label)}</span><span class="sheet-math" style="font-size:${fontPx(text + (aside || ""))}px">${math}${extra}</span></div>`;
+  if (aside && asideFits(text, aside)) {
+    return `<div class="sheet-row"><span class="sheet-label">${esc(label)}</span><span class="sheet-math">${math}<span class="aside">${esc(aside)}</span></span></div>`;
+  }
+  const follow = aside ? `<p class="sheet-aside">${esc(aside)}</p>` : "";
+  return `<div class="sheet-row"><span class="sheet-label">${esc(label)}</span><span class="sheet-math">${math}</span></div>${follow}`;
 }
 
 function resultRow(row) {
