@@ -400,9 +400,10 @@ test("los generadores cumplen la ecuación y aceptan formas equivalentes", () =>
   const dosCaminos = linearBoard(5, 2, 2, 14, { n: 4, d: 1 });
   const largo = dosCaminos.paths[0].rows.find((row) => String(row.left).includes("− 2x"));
   assert.ok(largo && String(largo.left).includes("5x") && String(largo.right).includes("− 2x"));
-  const pasado = dosCaminos.paths[1].rows.find((row) => row.arrow && /pasa restando/.test(row.arrow.label));
+  const pasado = dosCaminos.paths[1].rows.find((row) => row.step && /pasa restando/.test(row.step.label));
   assert.ok(pasado);
-  assert.equal((pasado.hot || []).some((mark) => String(mark).replace(/\s/g, "").startsWith("3x")), false);
+  const marcas = `${pasado.left} ${pasado.right}`.replace(/\s/g, "");
+  assert.equal(/\{\{[^}]+:3x/.test(marcas), false);
 
   const sx = checkLine(sistema, "x = 3");
   const sy = checkLine(sistema, "y = 7");

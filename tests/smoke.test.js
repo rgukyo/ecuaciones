@@ -78,8 +78,10 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(simple, /Ver de nuevo/);
   assert.match(simple, /Método 01/);
   assert.match(simple, /Método 02/);
+  assert.match(simple, /pasa restando/);
   assert.match(simple, /Sustitución/);
   assert.match(simple, /Clave/);
+  assert.equal(simple.includes('class="move"'), false);
 
   state = reduce(state, { type: "nav", view: "practicar" });
   assert.match(render(state), /Elige un tema/);
@@ -111,13 +113,23 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(examen, /Despejes de fórmulas/);
   assert.match(examen, /Áreas y volúmenes/);
   assert.match(examen, /Variación y reparto/);
-  assert.match(read("sw.js"), /ecuaciones-v5/);
+  assert.match(read("sw.js"), /ecuaciones-v6/);
+  assert.match(read("js/pizarra.js"), /Borrar todo/);
+  assert.match(read("js/pizarra.js"), /pizarra-eq/);
+  assert.match(read("js/pizarra.js"), /destination-out/);
   assert.match(read("sw.js"), /skipWaiting/);
   assert.match(read("sw.js"), /clients\.claim/);
   assert.match(read("sw.js"), /networkFirst/);
   assert.match(read("js/app.js"), /controllerchange/);
   assert.match(read("sw.js"), /pasos.js/);
   assert.match(read("sw.js"), /pizarra.js/);
+  assert.match(read("sw.js"), /figuras.js/);
+  state = reduce(createState(), { type: "start-practice", subtopicId: "areas", seed: 2 });
+  state = reduce(state, { type: "practice-solution" });
+  const figura = render(state);
+  assert.match(figura, /class="figura"/);
+  assert.match(figura, /<svg/);
+  assert.match(figura, /Qué nos piden/);
   assert.match(read("sw.js"), /Kalam-Bold.ttf/);
   assert.match(read("sw.js"), /visual.js/);
   state = reduce(state, { type: "start-exam", seed: 8, now: 5_000 });
