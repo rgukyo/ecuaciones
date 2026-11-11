@@ -2,6 +2,7 @@
 
 import { findSubtopic } from "./catalog.js";
 import { generateAreas, generateDespejes, generateVariacion, lessonModelos } from "./modelos.js";
+import { linearBoard } from "./visual.js";
 import {
   add,
   div,
@@ -364,6 +365,7 @@ function buildLinear(a, b, c, d) {
   return withNumber(solved.solution, {
     promptHtml: promptBox("Resuelve la ecuación.", equation),
     steps: [`Ecuación: ${equation}.`, ...solved.steps],
+    board: linearBoard(a, b, c, d, solved.solution),
     verify: { type: "linear", a, b, c, d },
   });
 }

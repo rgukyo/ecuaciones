@@ -65,12 +65,21 @@ test("la app carga y cada módulo se dibuja", () => {
   state = reduce(state, { type: "open-lesson", subtopicId: "signos" });
   let leccion = render(state);
   assert.match(leccion, /Ejemplo 1/);
-  assert.match(leccion, /Ver el primer paso/);
+  assert.match(leccion, /Paso a paso/);
+  assert.match(leccion, /Ver todo/);
   state = reduce(state, { type: "lesson-step", index: 0 });
   state = reduce(state, { type: "lesson-step", index: 0 });
   leccion = render(state);
-  assert.match(leccion, /Siguiente paso/);
+  assert.match(leccion, /Paso a paso/);
   assert.match(leccion, /Los signos son iguales/);
+  state = reduce(state, { type: "open-lesson", subtopicId: "simples" });
+  state = reduce(state, { type: "lesson-all", index: 0 });
+  const simple = render(state);
+  assert.match(simple, /Ver de nuevo/);
+  assert.match(simple, /Método 01/);
+  assert.match(simple, /Método 02/);
+  assert.match(simple, /Sustitución/);
+  assert.match(simple, /Clave/);
 
   state = reduce(state, { type: "nav", view: "practicar" });
   assert.match(render(state), /Elige un tema/);
@@ -95,7 +104,9 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(examen, /Despejes de fórmulas/);
   assert.match(examen, /Áreas y volúmenes/);
   assert.match(examen, /Variación y reparto/);
-  assert.match(read("sw.js"), /ecuaciones-v2/);
+  assert.match(read("sw.js"), /ecuaciones-v3/);
+  assert.match(read("sw.js"), /Kalam-Bold.ttf/);
+  assert.match(read("sw.js"), /visual.js/);
   state = reduce(state, { type: "start-exam", seed: 8, now: 5_000 });
   const curso = render(state);
   assert.match(curso, /Pregunta 1 de 5/);

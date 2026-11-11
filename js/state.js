@@ -118,6 +118,11 @@ export function reduce(state, action) {
       reveal[index] = (reveal[index] || 0) + 1;
       return { ...state, lessonReveal: reveal };
     }
+    case "lesson-all": {
+      const reveal = state.lessonReveal.slice();
+      reveal[action.index] = 99;
+      return { ...state, lessonReveal: reveal };
+    }
     case "lesson-reset": {
       const reveal = state.lessonReveal.slice();
       reveal[action.index] = 0;
@@ -221,6 +226,7 @@ export function reduce(state, action) {
           subtopicId: question.subtopicId,
           promptHtml: question.promptHtml,
           steps: question.steps,
+          board: question.board || null,
           answerHtml: question.answerHtml,
           ok,
           yours: yoursText(entry, question.kind),

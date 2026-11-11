@@ -104,6 +104,7 @@ export function boot(doc = document, storage = typeof localStorage !== "undefine
         seed: (Math.floor(Math.random() * 1_000_000_000) + 1) >>> 0,
       });
     } else if (name === "lesson-step") dispatch({ type: "lesson-step", index: Number(button.dataset.index) });
+    else if (name === "lesson-all") dispatch({ type: "lesson-all", index: Number(button.dataset.index) });
     else if (name === "lesson-reset") dispatch({ type: "lesson-reset", index: Number(button.dataset.index) });
     else if (name === "hint") dispatch({ type: "practice-hint", entry: readEntry(state.practice?.problem) });
     else if (name === "solution") dispatch({ type: "practice-solution", entry: readEntry(state.practice?.problem) });

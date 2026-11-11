@@ -1,4 +1,4 @@
-const CACHE = "ecuaciones-v2";
+const CACHE = "ecuaciones-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,6 +15,10 @@ const ASSETS = [
   "./js/state.js",
   "./js/expr.js",
   "./js/modelos.js",
+  "./js/visual.js",
+  "./fonts/Kalam-Regular.ttf",
+  "./fonts/Kalam-Bold.ttf",
+  "./fonts/OFL.txt",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

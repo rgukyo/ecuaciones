@@ -4,6 +4,7 @@ import { CATALOG, findSubtopic } from "./catalog.js";
 import { esc, rich } from "./format.js";
 import { lessonExamples } from "./generators.js";
 import { LESSONS } from "./lessons.js";
+import { beatCount, renderNotebook, viewBoard } from "./visual.js";
 
 const NAV = [
   { view: "inicio", label: "Inicio", icon: "home" },
@@ -84,10 +85,10 @@ function answerControl(problem, entry) {
     ${help}`;
 }
 
-function stepsHtml(steps, count) {
-  const visible = steps.slice(0, count);
-  if (!visible.length) return "";
-  return `<ol class="steps">${visible.map((step) => `<li>${step}</li>`).join("")}</ol>`;
+function solutionHtml(problem, shown) {
+  const board = viewBoard(problem);
+  if (!board) return "";
+  return `<div class="notebook">${renderNotebook(board, shown)}</div>`;
 }
 
 function renderHome(state) {
@@ -139,22 +140,23 @@ function renderLesson(state) {
   return shell(state, {
     title: sub.short,
     back: "ensenanza",
-    body: `<article class="card prose" style="--topic:${sub.group.color}">
+    body: `<article class="card prose notebook" style="--topic:${sub.group.color}">
         <span class="kicker">${esc(sub.group.title)}</span>
         <h2>${esc(sub.title)}</h2>
         ${blocks(lesson.blocks)}
       </article>
       ${examples.map((example, index) => {
+        const total = beatCount(viewBoard(example));
         const shown = state.lessonReveal[index] || 0;
-        const done = shown >= example.steps.length;
-        return `<section class="card example">
+        const done = shown >= total;
+        return `<section class="card example notebook">
           <h3>Ejemplo ${index + 1}</h3>
           ${example.promptHtml}
-          ${stepsHtml(example.steps, shown)}
+          ${shown ? solutionHtml(example, shown) : ""}
           <div class="actions">
             ${done
               ? `<button type="button" class="ghost" data-action="lesson-reset" data-index="${index}">Ver de nuevo</button>`
-              : `<button type="button" class="primary" data-action="lesson-step" data-index="${index}">${shown === 0 ? "Ver el primer paso" : "Siguiente paso"}</button>`}
+              : `<button type="button" class="primary" data-action="lesson-step" data-index="${index}">Paso a paso</button><button type="button" class="ghost" data-action="lesson-all" data-index="${index}">Ver todo</button>`}
           </div>
         </section>`;
       }).join("")}
@@ -199,8 +201,8 @@ function renderPractice(state) {
       <form class="card" id="answer-form" style="margin-top:0.8rem">
         ${answerControl(problem, entry)}
         ${feedback}
-        ${hint ? `<p class="hint-box"><strong>Pista.</strong> ${esc(problem.hint)}</p>` : ""}
-        ${solution ? `<div class="answer-box"><strong>Solución.</strong> ${problem.answerHtml}${stepsHtml(problem.steps, problem.steps.length)}</div>` : ""}
+        ${hint ? `<p class="hint-box notebook"><strong>Pista.</strong> ${esc(problem.hint)}</p>` : ""}
+        ${solution ? `<div class="answer-box"><strong>Solución.</strong> ${problem.answerHtml}${solutionHtml(problem, 99)}</div>` : ""}
         <div class="actions">
           <button type="submit" class="primary">Comprobar</button>
           <button type="button" class="ghost" data-action="hint">Pista</button>
@@ -305,7 +307,7 @@ function renderResult(state) {
           ${question.promptHtml}
           <p><strong>Tu respuesta:</strong> ${esc(question.yours)}</p>
           <div class="answer-box"><strong>Solución.</strong> ${question.answerHtml}</div>
-          ${stepsHtml(question.steps, question.steps.length)}
+          ${solutionHtml(question, 99)}
         </details>`).join("")}
       </section>`,
   });
