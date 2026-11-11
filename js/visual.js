@@ -266,11 +266,10 @@ function substitution(a, b, c, d, solution) {
 }
 
 function plug(coef, constant, sol) {
-  const shown = tag("magenta", `(${sol})`);
   const parts = [];
   if (coef !== 0) {
     const abs = Math.abs(coef);
-    const core = `${abs === 1 ? "" : abs}${shown}`;
+    const core = abs === 1 ? tag("magenta", sol) : `${abs}${tag("magenta", `(${sol})`)}`;
     parts.push(coef < 0 ? `−${core}` : core);
   }
   if (constant !== 0) {
@@ -292,7 +291,10 @@ function stripStep(html) {
 }
 
 function asEquation(text) {
-  let t = text.replace(/^(Ecuación|Queda|Operación|Expresión|Solución|Resultado)\s*:\s*/i, "");
+  let t = text.replace(
+    /^(Ecuación|Queda|Operación|Expresión|Solución|Resultado|Primero|Segundo|Tercero|Cuarto|Después|Luego|Ahora)\s*:\s*/i,
+    ""
+  );
   t = t.replace(/\.$/, "").trim();
   if (!t.includes("=")) return null;
   if ((t.match(/=/g) || []).length !== 1) return null;
@@ -329,6 +331,11 @@ export function notebookFromSteps(steps) {
     if (!text) continue;
     if (/^comprobación/i.test(text)) {
       checkText = text.replace(/^Comprobación:\s*/i, "");
+      continue;
+    }
+    const bare = text.match(/^(Operación|Ecuación)\s*:\s*(.+?)\.?$/i);
+    if (bare && !bare[2].includes("=")) {
+      rows.push({ expr: bare[2].replace(/\.$/, ""), opener: bare[1] });
       continue;
     }
     const resultLine = /^solución|^resultado|^expresión reducida/i.test(text);
@@ -371,70 +378,330 @@ export function beatCount(board) {
   return rows + (board.check ? 1 : 0);
 }
 
-function formatPlain(text) {
-  return esc(text).replace(/\[\[(-?\d+)\/(\d+)\]\]/g, (_, n, d) => {
-    const neg = n.startsWith("-");
-    const num = neg ? n.slice(1) : n;
-    return `${neg ? "−" : ""}<span class="frac"><span class="n">${num}</span><span class="d">${d}</span></span>`;
-  });
+const ORDINALS = ["Primero", "Segundo", "Tercero", "Cuarto", "Quinto", "Sexto", "Séptimo", "Octavo", "Noveno", "Décimo"];
+let arrowSerial = 0;
+
+function fracHtml(n, d) {
+  const neg = String(n).startsWith("-");
+  const num = neg ? String(n).slice(1) : n;
+  return `${neg ? "−" : ""}<span class="frac"><span class="n">${num}</span><span class="d">${d}</span></span>`;
 }
 
-function paint(text) {
-  return String(text ?? "")
-    .split(/(\{\{[a-z]+:[\s\S]*?\}\})/g)
-    .map((part) => {
-      const token = part.match(/^\{\{([a-z]+):([\s\S]*)\}\}$/);
-      if (!token) return formatPlain(part);
-      return `<span class="term t-${token[1]}">${formatPlain(token[2])}</span>`;
+function chunksOf(text) {
+  const chunks = [];
+  const re = /\{\{[a-z]+:([\s\S]*?)\}\}/g;
+  let last = 0;
+  let match;
+  const source = String(text ?? "");
+  while ((match = re.exec(source))) {
+    if (match.index > last) chunks.push({ raw: source.slice(last, match.index), tagged: false });
+    chunks.push({ raw: match[1], tagged: true });
+    last = match.index + match[0].length;
+  }
+  if (last < source.length) chunks.push({ raw: source.slice(last), tagged: false });
+  return chunks.length ? chunks : [{ raw: source, tagged: false }];
+}
+
+function lexRaw(raw) {
+  const tokens = [];
+  const re = /\[\[(-?\d+)\/(\d+)\]\]|([0-9]*[a-zA-Z][a-zA-Z0-9²^]*)|([0-9]+)|([+−×÷=·])|(\s+)|(.)/g;
+  let match;
+  while ((match = re.exec(raw))) {
+    if (match[1] != null) tokens.push({ type: "frac", n: match[1], d: match[2] });
+    else if (match[3]) tokens.push({ type: /[a-zA-Z]/.test(match[3]) ? "var" : "num", text: match[3] });
+    else if (match[4]) tokens.push({ type: "num", text: match[4] });
+    else if (match[5]) tokens.push({ type: "op", text: match[5] });
+    else if (match[6]) tokens.push({ type: "sp", text: match[6] });
+    else tokens.push({ type: "txt", text: match[7] });
+  }
+  return tokens;
+}
+
+function tokenHtml(token, kind, underline = true) {
+  const mark = underline && kind !== "eq" && kind !== "sub" && kind !== "txt" ? " u" : "";
+  if (token.type === "frac") {
+    return `<span class="k-${kind}${mark}">${fracHtml(token.n, token.d)}</span>`;
+  }
+  return `<span class="k-${kind}${mark}">${esc(token.text || "")}</span>`;
+}
+
+function mathHtml(text, options = {}) {
+  const { circle = false, sole = false } = options;
+  if (sole && /^[−-]?\d+(\/\d+)?$/.test(plain(text).trim())) {
+    return `<span class="k-res u">${esc(plain(text).trim())}</span>`;
+  }
+  const chunks = chunksOf(text);
+  let prevOp = "";
+  let html = "";
+  chunks.forEach((chunk) => {
+    const tokens = lexRaw(chunk.raw);
+    let piece = "";
+    for (let i = 0; i < tokens.length; i += 1) {
+      const token = tokens[i];
+      if (token.type === "sp") {
+        piece += token.text;
+        continue;
+      }
+      if (token.type === "op" && token.text === "=") {
+        piece += tokenHtml(token, "eq");
+        prevOp = "=";
+        continue;
+      }
+      if (token.type === "op" && "+−×÷·".includes(token.text)) {
+        const next = tokens.slice(i + 1).find((item) => item.type !== "sp");
+        const spaces = tokens[i + 1] && tokens[i + 1].type === "sp" ? tokens[i + 1].text : "";
+        if (next && (next.type === "num" || next.type === "var" || next.type === "frac")) {
+          const opKind = token.text === "−" ? "sub" : token.text === "+" ? "sum" : "mul";
+          const numKind = token.text === "×" || token.text === "÷" || token.text === "·" ? "mul" : token.text === "+" || token.text === "−" ? "sum" : "var";
+          const nextHtml = next.type === "frac" ? fracHtml(next.n, next.d) : esc(next.text || "");
+          if (opKind === numKind) {
+            piece += `<span class="k-${numKind} u">${esc(token.text)}${spaces}${nextHtml}</span>`;
+          } else {
+            piece += tokenHtml(token, opKind, false) + spaces + tokenHtml(next, numKind, true);
+          }
+          i += spaces ? 2 : 1;
+          prevOp = token.text;
+          continue;
+        }
+        piece += tokenHtml(token, token.text === "−" ? "sub" : token.text === "+" ? "sum" : "mul");
+        prevOp = token.text;
+        continue;
+      }
+      let kind = "var";
+      if (token.type === "num" || token.type === "frac") {
+        if (prevOp === "+" || prevOp === "−") kind = "sum";
+        else if (prevOp === "×" || prevOp === "÷" || prevOp === "·") kind = "mul";
+        else if (prevOp === "=" && sole) kind = "res";
+        else kind = "var";
+      } else if (token.type === "txt") kind = "txt";
+      piece += tokenHtml(token, kind);
+      prevOp = "";
+    }
+    if (circle && chunk.tagged) html += `<span class="oval oval-sub">${piece}</span>`;
+    else html += piece;
+  });
+  if (circle === "all") return `<span class="oval oval-sub">${html}</span>`;
+  if (circle && !html.includes("oval")) {
+    const wrapped = html.replace(
+      /(<span class="k-sub">−<\/span>\s*<span class="k-sum">[^<]+<\/span>(?:<span class="k-var">[^<]+<\/span>)?)/,
+      '<span class="oval oval-sub">$1</span>'
+    );
+    if (wrapped !== html) return wrapped;
+    const divided = html.replace(
+      /((?:<span class="k-mul">[^<]*<\/span>\s*){1,4})/,
+      '<span class="oval oval-mul">$1</span>'
+    );
+    if (divided !== html) return divided;
+  }
+  return html;
+}
+
+function noteHtml(text) {
+  let html = esc(text);
+  html = html.replace(/(\+[0-9]+(?:[a-z²]+)?)/gi, '<span class="n-sum">$1</span>');
+  html = html.replace(/(−\s*[0-9]+(?:[a-z²]+)?)/gi, '<span class="n-sub">$1</span>');
+  html = html.replace(/\b(restando|resta)\b/gi, '<span class="n-sub">$1</span>');
+  html = html.replace(/\b(sumando|suma)\b/gi, '<span class="n-sum">$1</span>');
+  html = html.replace(/\b(dividiendo|multiplicando|multiplicación|división|divide|multiplica)\b/gi, '<span class="n-mul">$1</span>');
+  return html;
+}
+
+function rowText(row) {
+  if (row.expr != null) return row.expr;
+  if (row.value != null && row.left == null) return row.value;
+  if (row.left != null) return `${row.left} = ${row.right}`;
+  return row.text || "";
+}
+
+function isMathRow(row) {
+  if (row.result) return false;
+  if (row.expr != null || row.left != null) return true;
+  if (!row.text) return false;
+  if (row.step && /^(fórmula|sustitución)\b/i.test(row.step.label || "")) return true;
+  const text = plain(row.text);
+  if (/[a-záéíóúñ]{4,}/i.test(text)) return false;
+  return /[=+−×÷·]/.test(text);
+}
+
+function preface(row) {
+  const label = row.step?.label || "";
+  if (!label || row.result) return "";
+  if (/^simplifica$/i.test(label) || /calcula ese lado/i.test(label)) return "";
+  const pasa = label.match(/^(?:La|El)\s+(.+?)\s+pasa\s+(restando|sumando)/i);
+  if (pasa) return `El ${pasa[1]} pasa ${pasa[2].toLowerCase()} al otro lado del =, haciendo lo contrario.`;
+  if (/^divide entre/i.test(label)) return "Está multiplicando. Pasa al otro lado dividiendo.";
+  if (/se juntan/i.test(label)) return "Se juntan los términos semejantes.";
+  if (row.left != null && label.length > 2) return label.replace(/\.$/, "") + (/[.!]$/.test(label) ? "" : ".");
+  return "";
+}
+
+function arrowKind(row, prevExpr) {
+  const label = row.step?.label || "";
+  if (/pasa restando|^(resta)\b/i.test(label)) return "#d32f2f";
+  if (/pasa sumando|^(suma)\b/i.test(label)) return "#f57c00";
+  if (/^divide entre|^multiplica por/i.test(label)) return "#7b1fa2";
+  if (row.left != null && prevExpr) {
+    const host = plain(prevExpr).replace(/\s/g, "");
+    const part = plain(row.left).replace(/\s/g, "");
+    if (part.length >= 3 && /[+−×÷]/.test(part) && host.includes(part)) return "#d32f2f";
+  }
+  return "";
+}
+
+const MATH_PX = 26;
+
+function asideFits(mathText, aside) {
+  if (!aside) return false;
+  const mathW = plain(mathText).length * MATH_PX * 0.58;
+  const noteW = aside.length * 14 * 0.55;
+  return mathW + noteW + 10 < 150;
+}
+
+function equationRow(row, label, circle, aside) {
+  const text = rowText(row);
+  const sole =
+    row.left != null &&
+    !/^(Ecuación|Operación)/.test(label) &&
+    /^[−-]?\d+(\/\d+)?$/.test(plain(row.right || "").trim());
+  let math = "";
+  if (row.left != null) {
+    const leftTagged = String(row.left).includes("{{");
+    const rightTagged = String(row.right).includes("{{");
+    const left = mathHtml(row.left, { circle: circle === "all-left" ? "all" : circle === "tag" && leftTagged && !rightTagged, sole: false });
+    const right = mathHtml(row.right, { circle: circle === "tag" && rightTagged, sole });
+    math = `${left}<span class="k-eq"> = </span>${right}`;
+  } else {
+    math = mathHtml(text, { circle: circle === "tag", sole: false });
+  }
+  if (aside && asideFits(text, aside)) {
+    return `<div class="sheet-row"><span class="sheet-label">${esc(label)}</span><span class="sheet-math">${math}<span class="aside">${esc(aside)}</span></span></div>`;
+  }
+  const follow = aside ? `<p class="sheet-aside">${esc(aside)}</p>` : "";
+  return `<div class="sheet-row"><span class="sheet-label">${esc(label)}</span><span class="sheet-math">${math}</span></div>${follow}`;
+}
+
+function resultRow(row) {
+  const text = row.left != null ? `${plain(row.left)} = ${plain(row.right)}` : plain(row.value || row.text || "");
+  return `<div class="sheet-row sheet-result"><span class="sheet-label sheet-label-lg">Resultado:</span><span class="result-oval">${esc(text)}</span></div>`;
+}
+
+function noteBlock(text) {
+  if (!text) return "";
+  return `<p class="sheet-note">${noteHtml(text)}</p>`;
+}
+
+function arrowSvg(color) {
+  arrowSerial += 1;
+  const id = `punta-${arrowSerial}`;
+  return `<svg class="gutter-arrow" viewBox="0 0 46 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="${id}" markerUnits="strokeWidth" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="${color}"></path></marker></defs><path d="M8,4 C 38,14 40,72 14,94" fill="none" stroke="${color}" stroke-width="2.4" vector-effect="non-scaling-stroke" marker-end="url(#${id})"></path></svg>`;
+}
+
+function renderRows(rows, eqStart, prevExprStart = "") {
+  let count = eqStart;
+  let prevExpr = prevExprStart;
+  let lastNote = "";
+  const norm = (value) => plain(value).replace(/[.]+$/g, "").trim();
+  const html = rows
+    .map((row) => {
+      if (row.result || (row.value != null && row.left == null && !row.expr)) return resultRow(row);
+      if (!isMathRow(row)) {
+        const label = row.step?.label || "";
+        const text = row.text || row.note || "";
+        const combined = label && text && !text.toLowerCase().includes(label.toLowerCase()) ? `${label} ${text}` : text || label;
+        lastNote = combined;
+        return noteBlock(combined);
+      }
+      const label = row.opener
+        ? `${row.opener}:`
+        : row.step && row.text && !row.left
+          ? `${row.step.label}:`
+          : count === 0
+            ? (/[a-z]/i.test(plain(rowText(row))) ? "Ecuación:" : "Operación:")
+            : `${ORDINALS[count - 1] || "Sigue"}:`;
+      count += 1;
+      const note = preface(row);
+      const showNote = note && norm(note) !== norm(lastNote);
+      if (showNote) lastNote = note;
+      let aside = "";
+      if (row.step && /calcula ese lado|simplifica/i.test(row.step.label || "") && prevExpr.includes("=")) {
+        const prevRight = plain(prevExpr.split("=").pop());
+        const now = plain(row.right || "");
+        if (prevRight && now && prevRight !== now) aside = `(${prevRight} = ${now})`;
+      }
+      const line = `${showNote ? noteBlock(note) : ""}${equationRow(row, label, row._circle || "", aside)}`;
+      prevExpr = rowText(row);
+      return line;
     })
     .join("");
-}
-
-function rowHtml(row) {
-  if (row.note && row.left == null && row.text == null && !row.step) return `<p class="ink-note">${esc(row.note)}</p>`;
-  const tone = row.result ? "result" : row.step?.tone || "";
-  const style = TONE_STYLE[tone] ? ` style="--ink:${TONE_STYLE[tone].ink};--band:${TONE_STYLE[tone].band}"` : "";
-  const label = row.step?.label ? `<p class="step-label">➜ ${esc(row.step.label)}</p>` : "";
-  let body = "";
-  if (row.result && row.value != null && row.left == null) {
-    body = `<div class="result-box">${paint(row.value)} <span class="check-mark" aria-label="correcto">✓</span></div>`;
-  } else if (row.result) {
-    body = `<div class="result-box">${paint(row.left)} <span class="eq-sign">=</span> ${paint(row.right)} <span class="check-mark" aria-label="correcto">✓</span></div>`;
-  } else if (row.text != null) {
-    body = `<p class="step-text">${paint(row.text)}</p>`;
-  } else if (row.left != null) {
-    body = `<div class="eq-line"><span class="eq-side left">${paint(row.left)}</span><span class="eq-sign">=</span><span class="eq-side right">${paint(row.right)}</span></div>`;
-  }
-  const cls = ["step-card", row.step && !row.result ? "has-move" : "", row.result ? "is-result" : ""].filter(Boolean).join(" ");
-  return `<div class="${cls}"${style}>${label}${body}</div>`;
-}
-
-function checkHtml(check) {
-  if (!check) return "";
-  if (check.note && (!check.lines || !check.lines.length)) {
-    return `<aside class="subst"><h3>Comprobación</h3><p class="ink-note">${esc(check.note)} <span class="check-mark">✓</span></p></aside>`;
-  }
-  const lines = (check.lines || [])
-    .map((line) =>
-      rowHtml({
-        left: line.left,
-        right: line.right,
-        result: Boolean(line.ok),
-        step: line.ok ? { tone: "result", label: "Los dos lados coinciden" } : null,
-      })
-    )
-    .join("");
-  return `<aside class="subst"><h3>${esc(check.title || "Sustitución")}</h3>${lines}</aside>`;
+  return { html, count, prevExpr };
 }
 
 function pathHtml(path, shown) {
-  const chunks = [];
-  path.rows.forEach((row, index) => {
-    if (index >= shown) return;
-    chunks.push(rowHtml(row));
-  });
-  const head = path.title ? `<h3 class="path-title">${esc(path.title)}</h3>${path.subtitle ? `<p class="path-sub">${esc(path.subtitle)}</p>` : ""}` : "";
-  return `<section class="path">${head}${chunks.join("")}</section>`;
+  const rows = path.rows.slice(0, shown);
+  const parts = [];
+  let eqCount = 0;
+  let carried = "";
+  let index = 0;
+  while (index < rows.length) {
+    let dest = -1;
+    for (let cursor = index + 1; cursor < rows.length; cursor += 1) {
+      let fromExpr = "";
+      for (let back = cursor - 1; back >= index; back -= 1) {
+        if (rows[back].expr || rows[back].left != null || isMathRow(rows[back])) {
+          fromExpr = rowText(rows[back]);
+          break;
+        }
+      }
+      const tone = arrowKind(rows[cursor], fromExpr);
+      if (tone && isMathRow(rows[cursor])) {
+        dest = cursor;
+        const tagged = String(rows[cursor].left || "").includes("{{") || String(rows[cursor].right || "").includes("{{");
+        rows[cursor]._circle = tagged ? "tag" : "all-left";
+        rows[cursor]._arrow = tone;
+        break;
+      }
+    }
+    if (dest < 0) {
+      const chunk = renderRows(rows.slice(index), eqCount, carried);
+      parts.push(chunk.html);
+      break;
+    }
+    let source = dest - 1;
+    while (source > index && !(rows[source].expr || rows[source].left != null || isMathRow(rows[source]))) source -= 1;
+    if (source > index) {
+      const before = renderRows(rows.slice(index, source), eqCount, carried);
+      parts.push(before.html);
+      eqCount = before.count;
+      carried = before.prevExpr;
+    }
+    const block = renderRows(rows.slice(source, dest + 1), eqCount, carried);
+    parts.push(`<div class="arrow-block">${block.html}${arrowSvg(rows[dest]._arrow)}</div>`);
+    eqCount = block.count;
+    carried = block.prevExpr;
+    index = dest + 1;
+  }
+  const head = path.title ? `<h3 class="sheet-title">${esc(path.title)}</h3>${path.subtitle ? `<p class="sheet-sub">${esc(path.subtitle)}</p>` : ""}` : "";
+  return `<section class="sheet">${head}${parts.join("")}</section>`;
+}
+
+function comprueba(check) {
+  if (!check) return "";
+  if (check.note && (!check.lines || !check.lines.length)) return `✓ Comprueba: ${check.note}`;
+  const lines = check.lines || [];
+  if (lines.length < 2) return check.note ? `✓ Comprueba: ${check.note}` : "";
+  const mid = lines[1];
+  const end = lines[lines.length - 1];
+  const left = plain(mid.left);
+  const right = plain(mid.right);
+  const value = plain(end.right);
+  if (right === value) return `✓ Comprueba: ${left} = ${value}`;
+  return `✓ Comprueba: ${left} = ${right} = ${value}`;
+}
+
+function checkHtml(check) {
+  const text = comprueba(check);
+  if (!text) return "";
+  return `<p class="sheet-check">${esc(text).replace(/^✓ /, "✓ ")}</p>`;
 }
 
 export function renderNotebook(board, shown) {
@@ -444,9 +711,11 @@ export function renderNotebook(board, shown) {
   const paths = board.paths
     .map((path) => pathHtml(path, limit))
     .join(many ? `<div class="path-split" aria-hidden="true"></div>` : "");
-  const showCheck = board.check && limit > Math.max(...board.paths.map((path) => path.rows.length));
+  const rowCount = Math.max(...board.paths.map((path) => path.rows.length), 0);
+  const showCheck = board.check && limit > rowCount;
   const clave = many && board.clave && showCheck ? `<p class="clave"><strong>Clave:</strong> ${esc(board.clave)}</p>` : "";
-  return `<div class="notebook-work ${many ? "paths" : "one-path"}">${paths}</div>${clave}${showCheck ? `<div class="work-check">${checkHtml(board.check)}</div>` : ""}`;
+  const check = showCheck ? checkHtml(board.check) : "";
+  return `<div class="notebook-work ${many ? "paths" : "one-path"}">${paths}${check}</div>${clave}`;
 }
 
 export function renderLinearCheck(a, b, c, d, solution) {

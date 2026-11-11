@@ -1,4 +1,4 @@
-const CACHE = "ecuaciones-v6";
+const CACHE = "ecuaciones-v7";
 const ASSETS = [
   "./",
   "./index.html",
