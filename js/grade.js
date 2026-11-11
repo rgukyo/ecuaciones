@@ -1,5 +1,6 @@
 /** Califica una respuesta escrita por el estudiante. */
 
+import { evalExpr, parseExpr, variablesIn } from "./expr.js";
 import { eq, frac, fracPlain, parseNumber, parsePair, parsePoly, parseRoots } from "./frac.js";
 
 function sameRoots(expected, given, doble) {
@@ -50,6 +51,28 @@ export function grade(problem, input) {
       ok: Boolean(d) && eq(d, frac(problem.answer.d)) && input.nature === problem.answer.nature,
     };
   }
+  if (problem.kind === "formula") {
+    const target = problem.verify.target;
+    const body = String(input ?? "")
+      .trim()
+      .replace(new RegExp(`^${target}\\s*=\\s*`), "");
+    const ast = parseExpr(body);
+    const canonical = parseExpr(problem.answerPlain);
+    if (!ast || !canonical) return { ok: false };
+    const used = variablesIn(ast);
+    if (used.includes(target)) return { ok: false };
+    if (used.some((name) => !problem.verify.free.includes(name))) return { ok: false };
+    try {
+      for (const sample of problem.verify.samples) {
+        const env = {};
+        for (const name of problem.verify.free) env[name] = frac(sample[name]);
+        if (!eq(evalExpr(ast, env), evalExpr(canonical, env))) return { ok: false };
+      }
+    } catch {
+      return { ok: false };
+    }
+    return { ok: used.length > 0 };
+  }
   return { ok: false };
 }
 
@@ -68,6 +91,7 @@ export function sampleInput(problem) {
   if (problem.kind === "discriminant") {
     return { d: String(problem.answer.d), nature: problem.answer.nature };
   }
+  if (problem.kind === "formula") return problem.answerPlain;
   return "";
 }
 

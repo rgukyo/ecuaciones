@@ -2,7 +2,7 @@
 
 App para estudiar ecuaciones en **3° de secundaria** (México). Tiene tres módulos:
 
-1. **Enseñanza:** leyes de los signos, jerarquía de operaciones, términos semejantes, ecuaciones de primer grado, problemas, sistemas 2×2 y ecuaciones cuadráticas. Cada ejemplo se abre paso a paso.
+1. **Enseñanza:** leyes de los signos, jerarquía de operaciones, términos semejantes, ecuaciones de primer grado, problemas, sistemas 2×2, ecuaciones cuadráticas, despejes de fórmulas, áreas y volúmenes con álgebra, y variación y reparto proporcional. Cada ejemplo se abre paso a paso.
 2. **Practicar:** ejercicios nuevos cada vez, con pista, solución completa y revisión al momento. Acepta respuestas equivalentes (`3/2`, `1.5`, `1,5`, `-2`).
 3. **Exámenes:** eliges temas o un mixto, con tiempo, sin pistas. Al final ves el puntaje, cada solución y qué temas repasar.
 
