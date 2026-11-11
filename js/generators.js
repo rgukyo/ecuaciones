@@ -1,6 +1,7 @@
 /** Generadores. Cada problema se arma para que la solución guardada sea exacta. */
 
 import { findSubtopic } from "./catalog.js";
+import { generateAreas, generateDespejes, generateVariacion, lessonModelos } from "./modelos.js";
 import {
   add,
   div,
@@ -1234,6 +1235,9 @@ const GENERATORS = {
   factorizacion: (rng) => genFactorizacion(rng),
   formula: (rng) => genFormula(rng),
   discriminante: genDiscriminante,
+  despejes: generateDespejes,
+  areas: generateAreas,
+  variacion: generateVariacion,
 };
 
 export function generateProblem(subtopicId, seed) {
@@ -1246,6 +1250,7 @@ export function generateProblem(subtopicId, seed) {
 
 export function lessonExamples(subtopicId) {
   const examples = {
+    ...lessonModelos(),
     signos: [
       buildProduct([-6, -4]),
       buildSum(-8, 3),

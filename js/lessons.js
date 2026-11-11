@@ -142,4 +142,43 @@ export const LESSONS = {
       { type: "note", text: "Un discriminante negativo no significa que te hayas equivocado. A veces la ecuación de verdad no tiene solución real." },
     ],
   },
+  despejes: {
+    blocks: [
+      { type: "p", text: "Una fórmula relaciona varias cantidades. Despejar es dejar sola la letra que te interesa, con las mismas jugadas que en una ecuación: lo que hagas de un lado, hazlo del otro." },
+      { type: "ul", items: [
+        "Si la letra está sumando, réstala en los dos lados.",
+        "Si está restando, súmala.",
+        "Si está multiplicando, divide los dos lados entre ese factor. No dividas entre cero.",
+        "Si está dividiendo, multiplica los dos lados.",
+      ] },
+      { type: "p", text: "En d = vt, la velocidad está multiplicando al tiempo. Por eso v = d/t. En el perímetro P = 2(l + a), primero divides entre 2 y después restas el lado que no quieres." },
+      { type: "note", text: "Al final, la letra despejada no debe aparecer del otro lado. Dos escrituras pueden ser la misma: P/2 − a y (P − 2a)/2." },
+    ],
+  },
+  areas: {
+    blocks: [
+      { type: "p", text: "Antes de calcular un número, escribe qué figura es y su fórmula. Si una medida está en función de x, el área o el volumen también queda como expresión." },
+      { type: "ul", items: [
+        "Rectángulo: área = largo por ancho.",
+        "Triángulo: área = base por altura entre 2.",
+        "Cuadrado: área = lado al cuadrado.",
+        "Prisma rectangular: volumen = largo por ancho por alto.",
+      ] },
+      { type: "p", text: "Si el dato es el área y la incógnita está en los dos factores, aparece una ecuación de segundo grado. Resuélvela y **descarta la solución negativa**: una longitud no puede ser menor que cero." },
+      { type: "note", text: "Un rectángulo de ancho x y largo x + 4 tiene área x(x + 4) = x² + 4x. Esa es la expresión. Si esa área vale 45, resuelves x² + 4x = 45." },
+    ],
+  },
+  variacion: {
+    blocks: [
+      { type: "p", text: "Variar es ver cómo cambia una cantidad cuando cambia la otra. La tabla, la fórmula y la gráfica cuentan la misma historia." },
+      { type: "h", text: "Proporcionalidad directa" },
+      { type: "p", text: "y/x vale siempre lo mismo. La gráfica es una recta que pasa por el origen. Si 12 litros cuestan $48, cada litro cuesta 48/12 = $4, y 5 litros cuestan 5 · 4." },
+      { type: "h", text: "Proporcionalidad inversa" },
+      { type: "p", text: "El producto x · y se queda fijo. Si una cantidad crece, la otra disminuye. Cuatro personas tardan 6 horas; el trabajo es 4 · 6 = 24. Tres personas tardan 24/3 = 8 horas." },
+      { type: "h", text: "Lineal y cuadrática" },
+      { type: "p", text: "Una relación lineal y = mx + b también es una recta, pero no siempre pasa por el origen: la b es un cobro fijo, como la entrada de un estacionamiento. Si y crece con el cuadrado de x, la fórmula es y = ax² y la gráfica se curva." },
+      { type: "h", text: "Reparto" },
+      { type: "p", text: "En un reparto directo, las partes se suman y cada quien se lleva las suyas. Si el reparto es inverso a 2 y 3, las partes se cruzan: quedan en razón 3 a 2." },
+    ],
+  },
 };

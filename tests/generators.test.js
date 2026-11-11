@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { eq, frac, isqrt, terminatingDecimal } from "../js/frac.js";
+import { evalExpr, parseExpr, variablesIn } from "../js/expr.js";
+import { add, eq, frac, isqrt, mul, terminatingDecimal } from "../js/frac.js";
 import { grade } from "../js/grade.js";
 import { subtopicIds, generateProblem, lessonExamples } from "../js/generators.js";
 
@@ -63,6 +64,73 @@ function satisfies(problem) {
   if (check.type === "word") return wordHolds(check, num(answer));
   if (check.type === "system") return systemHolds(check, answer);
   if (check.type === "quadratic") return quadraticHolds(check, answer);
+  if (check.type === "despeje") return despejeHolds(problem);
+  if (check.type === "figura") return figuraHolds(problem);
+  if (check.type === "variacion") return variacionHolds(problem);
+  return false;
+}
+
+function despejeHolds(problem) {
+  const check = problem.verify;
+  const ast = parseExpr(problem.answerPlain);
+  if (!ast || !check.samples || check.samples.length < 3) return false;
+  if (variablesIn(ast).includes(check.target)) return false;
+  for (const sample of check.samples) {
+    const env = {};
+    for (const name of check.free) {
+      if (!Number.isInteger(sample[name]) || sample[name] === 0) return false;
+      env[name] = frac(sample[name]);
+    }
+    let value;
+    try {
+      value = evalExpr(ast, env);
+    } catch {
+      return false;
+    }
+    env[check.target] = value;
+    if (!relationOk(check.template, env)) return false;
+  }
+  return true;
+}
+
+function relationOk(template, env) {
+  const g = (name) => env[name];
+  if (template === "vt") return eq(g("d"), mul(g("v"), g("t")));
+  if (template === "perimetro") return eq(g("P"), mul(frac(2), add(g("l"), g("a"))));
+  if (template === "area") return eq(g("A"), mul(g("l"), g("w")));
+  if (template === "triangulo") return eq(mul(frac(2), g("A")), mul(g("b"), g("h")));
+  if (template === "prisma") return eq(g("V"), mul(g("a"), mul(g("b"), g("c"))));
+  if (template === "fuerza") return eq(g("F"), mul(g("m"), g("a")));
+  if (template === "trapecio") return eq(mul(frac(2), g("A")), mul(add(g("B"), g("b")), g("h")));
+  return false;
+}
+
+function figuraHolds(problem) {
+  const { template, data } = problem.verify;
+  const answer = problem.answer;
+  if (template === "rect-expr") return answer.c2 === 1 && answer.c1 === data.k && answer.c0 === 0 && data.k > 0;
+  if (template === "tri-expr") return answer.c2 === 0 && answer.c1 === data.coef && answer.c0 === 0 && data.height === data.coef * 2 && data.coef > 0;
+  if (template === "prisma-expr") return answer.c2 === 0 && answer.c1 === data.p * data.q && answer.c0 === 0 && data.p > 0 && data.q > 0;
+  if (template === "rect-num") return answer.d === 1 && answer.n > 0 && answer.n * (answer.n + data.k) === data.area && data.k > 0;
+  if (template === "prisma-num") return answer.d === 1 && answer.n > 0 && answer.n * data.p * data.q === data.volume;
+  if (template === "compuesto-num") return answer.d === 1 && answer.n > 0 && answer.n * answer.n + data.k * answer.n === data.total && data.k > 0;
+  if (template === "cuadrado-num") return answer.d === 1 && answer.n > 0 && answer.n * answer.n === data.area;
+  if (template === "tri-num") return answer.d === 1 && answer.n > 0 && data.base > 0 && data.base % 2 === 0 && (data.base * answer.n) / 2 === data.area;
+  return false;
+}
+
+function variacionHolds(problem) {
+  const { template, data } = problem.verify;
+  const answer = problem.answer;
+  if (answer.d !== 1) return false;
+  const n = answer.n;
+  if (template === "directa") return data.k > 0 && data.baseQty > 0 && data.basePay === data.k * data.baseQty && n === data.k * data.x && data.x > 0;
+  if (template === "inversa") return data.w2 > 0 && data.constante === data.w1 * data.h1 && data.constante % data.w2 === 0 && n === data.constante / data.w2;
+  if (template === "lineal") return data.m !== 0 && n === data.m * data.x + data.b;
+  if (template === "cuadratica") return data.a > 0 && data.y0 === data.a * data.x0 * data.x0 && n === data.a * data.x * data.x;
+  if (template === "reparto-directo") return data.p > 0 && data.q > 0 && data.total === (data.p + data.q) * data.m && n === data.p * data.m;
+  if (template === "reparto-inverso") return data.p > 0 && data.q > 0 && data.total === (data.p + data.q) * data.m && n === data.q * data.m;
+  if (template === "tabla") return data.k > 0 && data.x > 0 && n === data.k * data.x;
   return false;
 }
 
@@ -243,6 +311,13 @@ function equivalentInputs(problem) {
   if (problem.kind === "discriminant") {
     return [{ d: `${problem.answer.d * 2}/2`, nature: problem.answer.nature }];
   }
+  if (problem.kind === "formula") {
+    const plain = problem.answerPlain;
+    const inputs = [plain.replaceAll("/", "÷"), `(${plain})`, `${problem.verify.target} = ${plain}`, plain.replaceAll("/", " / ")];
+    if (plain === "P/2-a") inputs.push("(P-2*a)/2");
+    if (plain === "2A/b") inputs.push("2*A/b");
+    return inputs;
+  }
   return [];
 }
 
@@ -256,6 +331,9 @@ function wrongInput(problem) {
 
 test("los generadores cumplen la ecuación y aceptan formas equivalentes", () => {
   const seenStories = new Set();
+  const seenDespeje = new Set();
+  const seenFigura = new Set();
+  const seenVariacion = new Set();
   for (const id of subtopicIds()) {
     for (let seed = 1; seed <= 40; seed += 1) {
       const problem = generateProblem(id, seed);
@@ -270,6 +348,9 @@ test("los generadores cumplen la ecuación y aceptan formas equivalentes", () =>
       }
       assert.equal(grade(problem, wrongInput(problem)).ok, false, `${id} ${seed} aceptó una respuesta incorrecta`);
       if (problem.verify.type === "word") seenStories.add(problem.verify.template);
+      if (problem.verify.type === "despeje") seenDespeje.add(`${problem.verify.template}:${problem.verify.target}`);
+      if (problem.verify.type === "figura") seenFigura.add(problem.verify.template);
+      if (problem.verify.type === "variacion") seenVariacion.add(problem.verify.template);
     }
     for (const example of lessonExamples(id)) {
       assert.equal(satisfies(example), true, `ejemplo de ${id}`);
@@ -278,5 +359,14 @@ test("los generadores cumplen la ecuación y aceptan formas equivalentes", () =>
   }
   for (const story of ["edades", "dinero", "perimetro", "consecutivos", "numero", "billetes"]) {
     assert.equal(seenStories.has(story), true, story);
+  }
+  for (const key of ["vt:v", "vt:t", "perimetro:l", "perimetro:a", "area:l", "area:w", "triangulo:h", "triangulo:b", "prisma:a", "fuerza:m", "fuerza:a", "trapecio:h", "trapecio:B"]) {
+    assert.equal(seenDespeje.has(key), true, key);
+  }
+  for (const key of ["rect-expr", "tri-expr", "prisma-expr", "rect-num", "prisma-num", "compuesto-num", "cuadrado-num", "tri-num"]) {
+    assert.equal(seenFigura.has(key), true, key);
+  }
+  for (const key of ["directa", "inversa", "lineal", "cuadratica", "reparto-directo", "reparto-inverso", "tabla"]) {
+    assert.equal(seenVariacion.has(key), true, key);
   }
 });

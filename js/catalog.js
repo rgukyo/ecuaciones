@@ -124,6 +124,51 @@ export const CATALOG = [
       },
     ],
   },
+  {
+    id: "despejes",
+    numero: "6",
+    title: "Despejes de fórmulas",
+    blurb: "Dejar sola una letra en perímetro, área, volumen y fórmulas como d = vt.",
+    color: "#0e7490",
+    subtopics: [
+      {
+        id: "despejes",
+        title: "Despejes de fórmulas",
+        short: "Despejes",
+        hint: "La letra que buscas debe quedar sola. Si está multiplicando, divide; si está sumando, resta. Haz lo mismo en los dos lados.",
+      },
+    ],
+  },
+  {
+    id: "areas",
+    numero: "7",
+    title: "Áreas y volúmenes",
+    blurb: "Expresiones algebraicas de áreas y volúmenes, y el valor que falta.",
+    color: "#b4532a",
+    subtopics: [
+      {
+        id: "areas",
+        title: "Áreas y volúmenes con álgebra",
+        short: "Áreas",
+        hint: "Primero escribe área o volumen con la fórmula. Si aparece x², resuelve la ecuación y quédate con la medida positiva.",
+      },
+    ],
+  },
+  {
+    id: "variacion",
+    numero: "8",
+    title: "Variación y reparto",
+    blurb: "Proporción directa e inversa, relación lineal y cuadrática, tablas, gráficas y reparto.",
+    color: "#3f6f4a",
+    subtopics: [
+      {
+        id: "variacion",
+        title: "Variación y reparto proporcional",
+        short: "Variación",
+        hint: "Directa: y/x es constante. Inversa: x·y es constante. En un reparto inverso, las partes se cruzan.",
+      },
+    ],
+  },
 ];
 
 export function allSubtopics() {

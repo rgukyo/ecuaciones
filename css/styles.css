@@ -287,6 +287,13 @@ input:focus, button:focus-visible { outline: 3px solid rgba(12, 92, 99, 0.35); o
 .bar span { display: block; height: 100%; background: var(--good); }
 .danger { background: var(--bad); color: white; }
 .fine { color: var(--muted); font-size: 0.92rem; margin-top: 0.8rem; }
+table.data { width: 100%; border-collapse: collapse; margin-top: 0.7rem; text-align: center; font-family: Palatino, Georgia, serif; font-size: 1.25rem; }
+table.data th, table.data td { border: 1px solid var(--line); padding: 0.4rem 0.3rem; }
+table.data th { color: var(--primary); }
+.plot { width: 100%; max-width: 18rem; height: auto; margin: 0.6rem auto 0; display: block; }
+.plot line { stroke: #8a7b68; stroke-width: 1.5; }
+.plot polyline { fill: none; stroke: #0c5c63; stroke-width: 3; }
+.plot circle { fill: #e39b2b; stroke: #fffdf8; stroke-width: 1; }
 .stack { display: grid; gap: 0.75rem; }
 @media (min-width: 720px) {
   .grid.two { grid-template-columns: 1fr 1fr; }

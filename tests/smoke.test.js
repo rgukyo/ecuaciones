@@ -58,6 +58,9 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(aprender, /Leyes de los signos/);
   assert.match(aprender, /Jerarquía de operaciones/);
   assert.match(aprender, /Términos semejantes/);
+  assert.match(aprender, /Despejes de fórmulas/);
+  assert.match(aprender, /Áreas y volúmenes/);
+  assert.match(aprender, /Variación y reparto/);
 
   state = reduce(state, { type: "open-lesson", subtopicId: "signos" });
   let leccion = render(state);
@@ -79,8 +82,20 @@ test("la app carga y cada módulo se dibuja", () => {
   state = reduce(state, { type: "practice-check", entry: sampleInput(state.practice.problem) });
   assert.match(render(state), /Correcto/);
 
+  state = reduce(state, { type: "start-practice", subtopicId: "despejes", seed: 1 });
+  const despeje = render(state);
+  assert.match(despeje, /Despeja/);
+  assert.match(despeje, /data-action="hint"/);
+  state = reduce(state, { type: "practice-check", entry: sampleInput(state.practice.problem) });
+  assert.match(render(state), /Correcto/);
+
   state = reduce(createState(), { type: "nav", view: "examen" });
-  assert.match(render(state), /Comenzar examen/);
+  const examen = render(state);
+  assert.match(examen, /Comenzar examen/);
+  assert.match(examen, /Despejes de fórmulas/);
+  assert.match(examen, /Áreas y volúmenes/);
+  assert.match(examen, /Variación y reparto/);
+  assert.match(read("sw.js"), /ecuaciones-v2/);
   state = reduce(state, { type: "start-exam", seed: 8, now: 5_000 });
   const curso = render(state);
   assert.match(curso, /Pregunta 1 de 5/);
