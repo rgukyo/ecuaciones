@@ -5,6 +5,7 @@ import { esc, rich } from "./format.js";
 import { lessonExamples } from "./generators.js";
 import { LESSONS } from "./lessons.js";
 import { beatCount, renderNotebook, viewBoard } from "./visual.js";
+import { substitutionHtml } from "./pasos.js";
 
 const NAV = [
   { view: "inicio", label: "Inicio", icon: "home" },
@@ -83,6 +84,37 @@ function answerControl(problem, entry) {
   return `<label for="respuesta">Tu respuesta</label>
     <input id="respuesta" name="respuesta" value="${esc(value)}" maxlength="80" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
     ${help}`;
+}
+
+const KEYS = ["7", "8", "9", "÷", "x", "4", "5", "6", "×", "y", "1", "2", "3", "−", "(", "0", "=", "+", ")", "²", "√", "/", "←"];
+
+function keyboardHtml(draft) {
+  return `<div class="step-pad">
+      <p class="step-draft" aria-live="polite">${draft ? esc(draft) : "Escribe un renglón"}</p>
+      <div class="keys">
+        ${KEYS.map((key) => `<button type="button" class="key" data-action="${key === "←" ? "step-back" : "step-key"}" data-key="${esc(key)}">${key}</button>`).join("")}
+      </div>
+      <div class="actions">
+        <button type="button" class="ghost" data-action="step-clear">Limpiar renglón</button>
+        <button type="button" class="primary" data-action="step-check">Comprobar renglón</button>
+      </div>
+    </div>`;
+}
+
+function stepHtml(practice) {
+  const lines = practice.stepLines
+    .map((line) => `<li class="step-ok"><span>${esc(line.text)}</span> <span class="check-mark">✓</span></li>`)
+    .join("");
+  const note = practice.stepNote
+    ? `<p class="feedback ${practice.stepNote.ok ? "ok" : "bad"}" role="status"><strong>${esc(practice.stepNote.message || "")}</strong> ${esc(practice.stepNote.hint || "")}</p>`
+    : "";
+  const done = practice.stepFinal ? `<div class="notebook">${substitutionHtml(practice.problem)}</div>` : "";
+  return `<div class="step-mode">
+      ${lines ? `<ol class="step-list">${lines}</ol>` : `<p class="fine">Escribe cada renglón de tu procedimiento. La app revisa si sigue siendo la misma ecuación.</p>`}
+      ${keyboardHtml(practice.stepDraft || "")}
+      ${note}
+      ${done}
+    </div>`;
 }
 
 function solutionHtml(problem, shown) {
@@ -186,7 +218,8 @@ function renderPracticeHome(state) {
 
 function renderPractice(state) {
   if (!state.practice) return renderPracticeHome(state);
-  const { problem, entry, hint, solution, status } = state.practice;
+  const practice = state.practice;
+  const { problem, entry, hint, solution, status } = practice;
   const sub = findSubtopic(problem.subtopicId);
   let feedback = "";
   if (status === "ok") feedback = `<p class="feedback ok" role="status">Correcto. ${problem.answerHtml}</p>`;
@@ -199,15 +232,20 @@ function renderPractice(state) {
         ${problem.promptHtml}
       </article>
       <form class="card" id="answer-form" style="margin-top:0.8rem">
-        ${answerControl(problem, entry)}
-        ${feedback}
+        <div class="segment">
+          <button type="button" class="ghost" data-action="practice-mode" data-mode="rapida" aria-pressed="${practice.mode !== "pasos"}">Respuesta rápida</button>
+          <button type="button" class="ghost" data-action="practice-mode" data-mode="pasos" aria-pressed="${practice.mode === "pasos"}">Paso a paso</button>
+        </div>
+        ${practice.mode === "pasos" ? stepHtml(practice) : answerControl(problem, entry)}
+        ${practice.mode === "pasos" ? "" : feedback}
         ${hint ? `<p class="hint-box notebook"><strong>Pista.</strong> ${esc(problem.hint)}</p>` : ""}
         ${solution ? `<div class="answer-box"><strong>Solución.</strong> ${problem.answerHtml}${solutionHtml(problem, 99)}</div>` : ""}
         <div class="actions">
-          <button type="submit" class="primary">Comprobar</button>
+          ${practice.mode === "pasos" ? "" : `<button type="submit" class="primary">Comprobar</button>`}
+          <button type="button" class="ghost" data-action="pizarra">Pizarra</button>
           <button type="button" class="ghost" data-action="hint">Pista</button>
           <button type="button" class="ghost" data-action="solution">Ver solución</button>
-          ${status === "ok" || solution ? `<button type="button" class="primary" data-action="next-practice">Siguiente ejercicio</button>` : ""}
+          ${status === "ok" || solution || practice.stepFinal ? `<button type="button" class="primary" data-action="next-practice">Siguiente ejercicio</button>` : ""}
         </div>
       </form>`,
   });
@@ -259,6 +297,7 @@ function renderExamRun(state) {
       <form class="card" id="answer-form" style="margin-top:0.8rem">
         ${answerControl(question, exam.answers[exam.index])}
         <div class="actions">
+          <button type="button" class="ghost" data-action="pizarra">Pizarra</button>
           <button type="button" class="ghost" data-action="exam-prev" ${exam.index === 0 ? "disabled" : ""}>Anterior</button>
           ${exam.index < exam.questions.length - 1
             ? `<button type="button" class="primary" data-action="exam-next">Siguiente</button>`

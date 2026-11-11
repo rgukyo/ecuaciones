@@ -377,6 +377,10 @@ export function renderNotebook(board, shown) {
   return `<div class="notebook-work ${many ? "paths" : "one-path"}">${paths}</div>${clave}${showCheck ? `<div class="work-check">${checkHtml(board.check)}</div>` : ""}`;
 }
 
+export function renderLinearCheck(a, b, c, d, solution) {
+  return checkHtml(substitution(a, b, c, d, solution));
+}
+
 export function viewBoard(problem) {
   if (problem && problem.board) return problem.board;
   return notebookFromSteps(problem && problem.steps);

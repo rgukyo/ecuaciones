@@ -4,6 +4,7 @@ import { evalExpr, parseExpr, variablesIn } from "../js/expr.js";
 import { add, eq, frac, isqrt, mul, terminatingDecimal } from "../js/frac.js";
 import { grade } from "../js/grade.js";
 import { subtopicIds, generateProblem, lessonExamples } from "../js/generators.js";
+import { checkLine, lineDone } from "../js/pasos.js";
 
 function num(value) {
   return frac(value.n, value.d);
@@ -369,4 +370,33 @@ test("los generadores cumplen la ecuación y aceptan formas equivalentes", () =>
   for (const key of ["directa", "inversa", "lineal", "cuadratica", "reparto-directo", "reparto-inverso", "tabla"]) {
     assert.equal(seenVariacion.has(key), true, key);
   }
+
+  const simple = lessonExamples("simples")[0];
+  assert.equal(checkLine(simple, "x = 12 - 7").ok, true);
+  assert.equal(checkLine(simple, "x + 7 - 7 = 12 - 7").ok, true);
+  const signo = checkLine(simple, "x = 12 + 7");
+  assert.equal(signo.ok, false);
+  assert.match(signo.message, /sin cambiar de signo/);
+  assert.equal(checkLine(simple, "x = 5").final, true);
+  assert.equal(checkLine(simple, "0 = 0").ok, false);
+
+  const cuadratica = lessonExamples("factorizacion")[0];
+  assert.equal(checkLine(cuadratica, "(x-2)(x-3)=0").ok, true);
+  const una = checkLine(cuadratica, "x=2");
+  assert.equal(una.ok, true);
+  assert.equal(una.final, false);
+  const otra = checkLine(cuadratica, "x=3");
+  assert.equal(lineDone(cuadratica, [{ assign: una.assign }, { assign: otra.assign }]), true);
+
+  const despeje = lessonExamples("despejes")[0];
+  assert.equal(checkLine(despeje, "v = d/t").final, true);
+  assert.equal(checkLine(despeje, "v = d*t").ok, false);
+  assert.equal(checkLine(despeje, "d = v*t").ok, true);
+
+  const sistema = lessonExamples("sustitucion")[0];
+  assert.equal(checkLine(sistema, "y = 2x + 1").ok, true);
+  assert.equal(checkLine(sistema, "x + y = 9").ok, false);
+  const sx = checkLine(sistema, "x = 3");
+  const sy = checkLine(sistema, "y = 7");
+  assert.equal(lineDone(sistema, [{ assign: sx.assign }, { assign: sy.assign }]), true);
 });

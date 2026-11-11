@@ -88,6 +88,13 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(practica, /Tu respuesta/);
   assert.match(practica, /data-action="hint"/);
   assert.match(practica, /Ver solución/);
+  assert.match(practica, /data-action="pizarra"/);
+  assert.match(practica, /Paso a paso/);
+  state = reduce(state, { type: "practice-mode", mode: "pasos" });
+  const pasos = render(state);
+  assert.match(pasos, /Comprobar renglón/);
+  assert.match(pasos, /data-key="x"/);
+  state = reduce(state, { type: "practice-mode", mode: "rapida" });
   state = reduce(state, { type: "practice-check", entry: sampleInput(state.practice.problem) });
   assert.match(render(state), /Correcto/);
 
@@ -104,7 +111,9 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(examen, /Despejes de fórmulas/);
   assert.match(examen, /Áreas y volúmenes/);
   assert.match(examen, /Variación y reparto/);
-  assert.match(read("sw.js"), /ecuaciones-v3/);
+  assert.match(read("sw.js"), /ecuaciones-v4/);
+  assert.match(read("sw.js"), /pasos.js/);
+  assert.match(read("sw.js"), /pizarra.js/);
   assert.match(read("sw.js"), /Kalam-Bold.ttf/);
   assert.match(read("sw.js"), /visual.js/);
   state = reduce(state, { type: "start-exam", seed: 8, now: 5_000 });

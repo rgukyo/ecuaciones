@@ -4,6 +4,7 @@ import { CATALOG, findSubtopic } from "./catalog.js";
 import { grade, yoursText } from "./grade.js";
 import { generateProblem } from "./generators.js";
 import { makeRng } from "./frac.js";
+import { checkLine, lineDone } from "./pasos.js";
 
 export const STORAGE_KEY = "ecuaciones.progreso.v1";
 
@@ -142,6 +143,11 @@ export function reduce(state, action) {
           solution: false,
           status: null,
           counted: false,
+          mode: "rapida",
+          stepDraft: "",
+          stepLines: [],
+          stepNote: null,
+          stepFinal: false,
         },
       };
     }
@@ -160,6 +166,54 @@ export function reduce(state, action) {
         ...state,
         progress,
         practice: { ...state.practice, solution: true, counted, entry: action.entry },
+      };
+    }
+    case "practice-mode":
+      if (!state.practice) return state;
+      return { ...state, practice: { ...state.practice, mode: action.mode === "pasos" ? "pasos" : "rapida" } };
+    case "step-key": {
+      if (!state.practice) return state;
+      const stepDraft = `${state.practice.stepDraft}${action.key}`.slice(0, 80);
+      return { ...state, practice: { ...state.practice, stepDraft, stepNote: null } };
+    }
+    case "step-back": {
+      if (!state.practice) return state;
+      const chars = [...state.practice.stepDraft];
+      chars.pop();
+      return { ...state, practice: { ...state.practice, stepDraft: chars.join("") } };
+    }
+    case "step-clear":
+      if (!state.practice) return state;
+      return { ...state, practice: { ...state.practice, stepDraft: "", stepNote: null } };
+    case "step-check": {
+      if (!state.practice) return state;
+      const result = checkLine(state.practice.problem, state.practice.stepDraft);
+      if (!result.ok) {
+        return { ...state, practice: { ...state.practice, stepNote: result } };
+      }
+      const stepLines = [
+        ...state.practice.stepLines,
+        { text: state.practice.stepDraft, final: Boolean(result.final), assign: result.assign || null },
+      ];
+      const stepFinal = Boolean(result.final) || lineDone(state.practice.problem, stepLines);
+      let progress = state.progress;
+      let counted = state.practice.counted;
+      if (stepFinal && !counted) {
+        progress = recordPractice(progress, state.practice.problem.subtopicId, true);
+        counted = true;
+      }
+      return {
+        ...state,
+        progress,
+        practice: {
+          ...state.practice,
+          stepLines,
+          stepDraft: "",
+          stepNote: { ok: true, message: "Correcto.", hint: "" },
+          stepFinal,
+          counted,
+          status: stepFinal ? "ok" : state.practice.status,
+        },
       };
     }
     case "practice-check": {

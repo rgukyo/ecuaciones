@@ -3,6 +3,7 @@
 import { findSubtopic } from "./catalog.js";
 import { render } from "./render.js";
 import { createState, loadProgress, reduce, saveProgress } from "./state.js";
+import { mountPizarra } from "./pizarra.js";
 
 function memoryStorage() {
   const data = new Map();
@@ -45,6 +46,8 @@ function actionFromHash(hash) {
 
 export function boot(doc = document, storage = typeof localStorage !== "undefined" ? localStorage : memoryStorage()) {
   const root = doc.getElementById("app");
+  const pizarra = doc.getElementById("pizarra");
+  const board = pizarra ? mountPizarra(pizarra) : null;
   let state = createState(loadProgress(storage));
   let progressRef = state.progress;
   let focusKey = "";
@@ -95,6 +98,10 @@ export function boot(doc = document, storage = typeof localStorage !== "undefine
     const button = event.target.closest("[data-action]");
     if (!button || !root.contains(button)) return;
     const name = button.dataset.action;
+    if (name === "pizarra") {
+      board?.open();
+      return;
+    }
     if (name === "nav") dispatch({ type: "nav", view: button.dataset.view });
     else if (name === "open-lesson") dispatch({ type: "open-lesson", subtopicId: button.dataset.subtopic });
     else if (name === "start-practice") {
@@ -128,6 +135,11 @@ export function boot(doc = document, storage = typeof localStorage !== "undefine
     else if (name === "reset-ask") dispatch({ type: "reset-ask" });
     else if (name === "reset-cancel") dispatch({ type: "reset-cancel" });
     else if (name === "reset-progress") dispatch({ type: "reset-progress" });
+    else if (name === "practice-mode") dispatch({ type: "practice-mode", mode: button.dataset.mode });
+    else if (name === "step-key") dispatch({ type: "step-key", key: button.dataset.key });
+    else if (name === "step-back") dispatch({ type: "step-back" });
+    else if (name === "step-clear") dispatch({ type: "step-clear" });
+    else if (name === "step-check") dispatch({ type: "step-check" });
   });
 
   root.addEventListener("submit", (event) => {

@@ -16,8 +16,18 @@ function tokenize(src) {
       i += 1;
       continue;
     }
-    if ("+-*/()".includes(c)) {
+    if ("+-*/()^".includes(c)) {
       tokens.push({ k: c });
+      i += 1;
+      continue;
+    }
+    if (c === "²") {
+      tokens.push({ k: "^" }, { k: "n", v: frac(2) });
+      i += 1;
+      continue;
+    }
+    if (c === "√") {
+      tokens.push({ k: "sqrt" });
       i += 1;
       continue;
     }
@@ -69,8 +79,20 @@ export function parseExpr(src) {
     return left;
   }
 
-  function parseMul() {
+  function parsePow() {
     let left = parseUnary();
+    if (!left) return null;
+    if (peek() && peek().k === "^") {
+      eat();
+      const right = parseUnary();
+      if (!right) return null;
+      left = { t: "^", l: left, r: right };
+    }
+    return left;
+  }
+
+  function parseMul() {
+    let left = parsePow();
     if (!left) return null;
     while (peek()) {
       const next = peek();
@@ -79,8 +101,8 @@ export function parseExpr(src) {
         const right = parseUnary();
         if (!right) return null;
         left = { t: op, l: left, r: right };
-      } else if (next.k === "n" || next.k === "v" || next.k === "(") {
-        const right = parseUnary();
+      } else if (next.k === "n" || next.k === "v" || next.k === "(" || next.k === "sqrt") {
+        const right = parsePow();
         if (!right) return null;
         left = { t: "*", l: left, r: right };
       } else {
@@ -100,6 +122,12 @@ export function parseExpr(src) {
       const value = parseUnary();
       if (!value) return null;
       return { t: "-", l: { t: "n", v: frac(0) }, r: value };
+    }
+    if (peek() && peek().k === "sqrt") {
+      eat();
+      const value = parseUnary();
+      if (!value) return null;
+      return { t: "sqrt", r: value };
     }
     return parsePrimary();
   }
@@ -123,6 +151,14 @@ export function parseExpr(src) {
   return ast;
 }
 
+function sqrtFrac(value) {
+  if (value.n < 0) throw new Error("raíz");
+  const sn = Math.round(Math.sqrt(value.n));
+  const sd = Math.round(Math.sqrt(value.d));
+  if (sn * sn !== value.n || sd * sd !== value.d) throw new Error("raíz");
+  return frac(sn, sd);
+}
+
 export function evalExpr(ast, env) {
   if (ast.t === "n") return ast.v;
   if (ast.t === "v") {
@@ -130,12 +166,19 @@ export function evalExpr(ast, env) {
     if (!value) throw new Error(`falta ${ast.name}`);
     return value;
   }
+  if (ast.t === "sqrt") return sqrtFrac(evalExpr(ast.r, env));
   const left = evalExpr(ast.l, env);
   const right = evalExpr(ast.r, env);
   if (ast.t === "+") return add(left, right);
   if (ast.t === "-") return sub(left, right);
   if (ast.t === "*") return mul(left, right);
   if (ast.t === "/") return div(left, right);
+  if (ast.t === "^") {
+    if (right.d !== 1 || right.n < 0 || right.n > 6) throw new Error("potencia");
+    let acc = frac(1);
+    for (let i = 0; i < right.n; i += 1) acc = mul(acc, left);
+    return acc;
+  }
   throw new Error("operación");
 }
 
