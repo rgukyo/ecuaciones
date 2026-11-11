@@ -111,7 +111,11 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(examen, /Despejes de fórmulas/);
   assert.match(examen, /Áreas y volúmenes/);
   assert.match(examen, /Variación y reparto/);
-  assert.match(read("sw.js"), /ecuaciones-v4/);
+  assert.match(read("sw.js"), /ecuaciones-v5/);
+  assert.match(read("sw.js"), /skipWaiting/);
+  assert.match(read("sw.js"), /clients\.claim/);
+  assert.match(read("sw.js"), /networkFirst/);
+  assert.match(read("js/app.js"), /controllerchange/);
   assert.match(read("sw.js"), /pasos.js/);
   assert.match(read("sw.js"), /pizarra.js/);
   assert.match(read("sw.js"), /Kalam-Bold.ttf/);

@@ -5,6 +5,7 @@ import { add, eq, frac, isqrt, mul, terminatingDecimal } from "../js/frac.js";
 import { grade } from "../js/grade.js";
 import { subtopicIds, generateProblem, lessonExamples } from "../js/generators.js";
 import { checkLine, lineDone } from "../js/pasos.js";
+import { linearBoard } from "../js/visual.js";
 
 function num(value) {
   return frac(value.n, value.d);
@@ -396,6 +397,13 @@ test("los generadores cumplen la ecuación y aceptan formas equivalentes", () =>
   const sistema = lessonExamples("sustitucion")[0];
   assert.equal(checkLine(sistema, "y = 2x + 1").ok, true);
   assert.equal(checkLine(sistema, "x + y = 9").ok, false);
+  const dosCaminos = linearBoard(5, 2, 2, 14, { n: 4, d: 1 });
+  const largo = dosCaminos.paths[0].rows.find((row) => String(row.left).includes("− 2x"));
+  assert.ok(largo && String(largo.left).includes("5x") && String(largo.right).includes("− 2x"));
+  const pasado = dosCaminos.paths[1].rows.find((row) => row.arrow && /pasa restando/.test(row.arrow.label));
+  assert.ok(pasado);
+  assert.equal((pasado.hot || []).some((mark) => String(mark).replace(/\s/g, "").startsWith("3x")), false);
+
   const sx = checkLine(sistema, "x = 3");
   const sy = checkLine(sistema, "y = 7");
   assert.equal(lineDone(sistema, [{ assign: sx.assign }, { assign: sy.assign }]), true);

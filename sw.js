@@ -1,4 +1,4 @@
-const CACHE = "ecuaciones-v4";
+const CACHE = "ecuaciones-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -42,11 +42,37 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isAppShell(url) {
+  return url.pathname.endsWith("/") || /\.(html|js|css)$/.test(url.pathname);
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    if (fresh) return fresh;
+  } catch {
+    /* sin red: se usa la copia guardada */
+  }
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  if (request.mode === "navigate") {
+    const home = await cache.match("./index.html");
+    if (home) return home;
+  }
+  return new Response("Sin conexión", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (isAppShell(url)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
