@@ -138,7 +138,7 @@ function passPath(a, b, c, d, sol) {
     rows.push({
       left: sideText(A, B),
       right: sideText(0, D),
-      hot: [sideText(A, 0)],
+      hot: [],
       arrow: {
         op: c > 0 ? "−" : "+",
         label: c > 0 ? `${monoX(c)} pasa restando` : `${monoX(-c)} pasa sumando`,
@@ -317,11 +317,11 @@ function arrowSvg(arrow, index) {
   return `<div class="move" style="color:${hue}">
     <svg viewBox="0 0 360 72" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <defs>
-        <marker id="${id}" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="${hue}"></path>
+        <marker id="${id}" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto">
+          <path d="M0,0 L16,8 L0,16 Z" fill="${hue}"></path>
         </marker>
       </defs>
-      <path d="M${start} 10 C ${start} 34, ${end} 16, ${end} 48" fill="none" stroke="${hue}" stroke-width="3" stroke-linecap="round" marker-end="url(#${id})"></path>
+      <path d="M${start} 8 C ${start} 36, ${end} 14, ${end} 50" fill="none" stroke="${hue}" stroke-width="6" stroke-linecap="round" marker-end="url(#${id})"></path>
     </svg>
     <span class="move-op">${esc(arrow.op || "")}</span>
     <span class="move-label">${esc(arrow.label || "")}</span>
