@@ -3,6 +3,7 @@
 import { frac, fracPlain } from "./frac.js";
 import { esc, polyHtml, polyPlain, promptBox } from "./format.js";
 import { exprHtml, exprPlain, evalExpr, parseExpr } from "./expr.js";
+import { askRow, boardOf, figureHtml, formulaRow, ink, resultRow, subRow, workRow } from "./figuras.js";
 
 const V = (name) => ({ t: "v", name });
 const N = (n) => ({ t: "n", v: frac(n) });
@@ -224,15 +225,52 @@ function makeDespeje(template, target, seed) {
     env[target] = value;
     if (!sameFormula(template, env)) throw new Error(`despeje ${template} ${target}`);
   }
+  const figure = despejeFigure(template);
   return {
     kind: "formula",
-    promptHtml: `<p class="lead">Despeja ${target}.</p><div class="math-lg">${esc(spec.shown)}</div><p class="fine">${esc(spec.note)}</p>`,
+    promptHtml: `<p class="lead">Despeja ${target}.</p><div class="math-lg">${esc(spec.shown)}</div><p class="fine">${esc(spec.note)}</p>${figure}`,
     steps: solve.steps(legible),
     answerPlain: plain,
     answerHtml: `${target} = ${exprHtml(solve.ast)}`,
     inputHelp: FORMULA_HELP,
     verify: { type: "despeje", template, target, free: solve.free, samples },
   };
+}
+
+function despejeFigure(template) {
+  if (template === "perimetro") {
+    return figureHtml("rect", {
+      ancho: { text: "a", tone: "green" },
+      largo: { text: "l", tone: "purple" },
+    });
+  }
+  if (template === "area") {
+    return figureHtml("rect", {
+      ancho: { text: "w", tone: "green" },
+      largo: { text: "l", tone: "purple" },
+    });
+  }
+  if (template === "triangulo") {
+    return figureHtml("tri", {
+      base: { text: "b", tone: "purple" },
+      altura: { text: "h", tone: "orange" },
+    });
+  }
+  if (template === "prisma") {
+    return figureHtml("prism", {
+      largo: { text: "a", tone: "purple" },
+      ancho: { text: "b", tone: "green" },
+      alto: { text: "c", tone: "orange" },
+    });
+  }
+  if (template === "trapecio") {
+    return figureHtml("trap", {
+      mayor: { text: "B", tone: "purple" },
+      menor: { text: "b", tone: "green" },
+      altura: { text: "h", tone: "orange" },
+    });
+  }
+  return "";
 }
 
 function sameFormula(template, env) {
@@ -281,51 +319,99 @@ function numFrom(f) {
 }
 
 function makeRectExpr(k) {
+  const expr = polyHtml(1, k, 0);
+  const figure = figureHtml("rect", {
+    ancho: { text: "x", tone: "purple" },
+    largo: { text: `x + ${k}`, tone: "green" },
+  });
   return polyProblem(1, k, 0, {
-    promptHtml: promptBox(
-      "Escribe el área, ya reducida.",
-      `Un rectángulo mide x de ancho y x + ${k} de largo.`
-    ),
+    promptHtml: `${promptBox("Escribe el área, ya reducida.", `Un rectángulo mide x de ancho y x + ${k} de largo.`)}${figure}`,
     steps: [
-      "El área de un rectángulo es ancho por largo.",
-      `Área = x(x + ${k}).`,
-      `Distribuye: x² + ${k}x.`,
-      `Expresión reducida: ${polyHtml(1, k, 0)}.`,
+      "¿Qué nos piden? El área, ya reducida.",
+      "Fórmula: Área = largo × ancho.",
+      `Sustituye: Área = x(x + ${k}).`,
+      `Distribuye: ${expr}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El área del rectángulo, ya reducida."),
+        formulaRow(`Área = ${ink("green", "largo")} × ${ink("purple", "ancho")}`),
+        subRow(`Área = ${ink("purple", "x")}(${ink("green", `x + ${k}`)})`),
+        workRow("Distribuye", ink("purple", expr), "purple"),
+        resultRow("Área", expr),
+      ],
+      figure
+    ),
     verify: { type: "figura", template: "rect-expr", data: { k } },
   });
 }
 
 function makeTriExpr(height) {
   const coef = height / 2;
+  const expr = polyHtml(0, coef, 0);
+  const figure = figureHtml("tri", {
+    base: { text: "x", tone: "purple" },
+    altura: { text: String(height), tone: "orange" },
+  });
   return polyProblem(0, coef, 0, {
-    promptHtml: promptBox(
-      "Escribe el área, ya reducida.",
-      `Un triángulo tiene base x y altura ${height}.`
-    ),
+    promptHtml: `${promptBox("Escribe el área, ya reducida.", `Un triángulo tiene base x y altura ${height}.`)}${figure}`,
     steps: [
-      "El área de un triángulo es base por altura entre 2.",
-      `Área = x · ${height} / 2.`,
-      `${height} / 2 = ${coef}, así que el área es ${coef}x.`,
-      `Expresión reducida: ${polyHtml(0, coef, 0)}.`,
+      "¿Qué nos piden? El área, ya reducida.",
+      "Fórmula: Área = base × altura / 2.",
+      `Sustituye: Área = x · ${height} / 2.`,
+      `${height} / 2 = ${coef}, así que el área es ${expr}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El área del triángulo, ya reducida."),
+        formulaRow(`Área = ${ink("purple", "base")} × ${ink("orange", "altura")} / 2`),
+        subRow(`Área = ${ink("purple", "x")} · ${ink("orange", String(height))} / 2`),
+        workRow(
+          "Multiplica los números",
+          `${ink("orange", String(height))} / 2 = ${ink("teal", String(coef))}, así que el área es ${ink("purple", expr)}`,
+          "teal"
+        ),
+        resultRow("Área", expr),
+      ],
+      figure
+    ),
     verify: { type: "figura", template: "tri-expr", data: { height, coef } },
   });
 }
 
 function makePrismaExpr(p, q) {
   const coef = p * q;
+  const expr = polyHtml(0, coef, 0);
+  const figure = figureHtml("prism", {
+    largo: { text: "x", tone: "purple" },
+    ancho: { text: String(p), tone: "green" },
+    alto: { text: String(q), tone: "orange" },
+  });
   return polyProblem(0, coef, 0, {
-    promptHtml: promptBox(
+    promptHtml: `${promptBox(
       "Escribe el volumen, ya reducido.",
       `Un prisma rectangular mide x de largo, ${p} de ancho y ${q} de alto.`
-    ),
+    )}${figure}`,
     steps: [
-      "El volumen es el producto de las tres aristas.",
-      `Volumen = x · ${p} · ${q}.`,
-      `${p} · ${q} = ${coef}, así que el volumen es ${coef}x.`,
-      `Expresión reducida: ${polyHtml(0, coef, 0)}.`,
+      "¿Qué nos piden? El volumen, ya reducido.",
+      "Fórmula: Volumen = largo × ancho × alto.",
+      `Sustituye: Volumen = x · ${p} · ${q}.`,
+      `${p} · ${q} = ${coef}, así que el volumen es ${expr}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El volumen del prisma, ya reducido."),
+        formulaRow(`Volumen = ${ink("purple", "largo")} × ${ink("green", "ancho")} × ${ink("orange", "alto")}`),
+        subRow(`Volumen = ${ink("purple", "x")} · ${ink("green", String(p))} · ${ink("orange", String(q))}`),
+        workRow(
+          "Multiplica los números",
+          `${ink("green", String(p))} · ${ink("orange", String(q))} = ${ink("teal", String(coef))}, así que el volumen es ${ink("purple", expr)}`,
+          "teal"
+        ),
+        resultRow("Volumen", expr),
+      ],
+      figure
+    ),
     verify: { type: "figura", template: "prisma-expr", data: { p, q } },
   });
 }
@@ -333,17 +419,31 @@ function makePrismaExpr(p, q) {
 function makeRectNum(x, k) {
   const area = x * (x + k);
   const otro = x + k;
+  const figure = figureHtml("rect", {
+    ancho: { text: "x", tone: "purple" },
+    largo: { text: `x + ${k}`, tone: "green" },
+  });
   return numberProblem(x, {
-    promptHtml: `<p class="story">Un rectángulo tiene de ancho x cm y de largo x + ${k} cm. Su área es ${area} cm². ¿Cuánto mide el ancho?</p>`,
+    promptHtml: `<p class="story">Un rectángulo tiene de ancho x cm y de largo x + ${k} cm. Su área es ${area} cm². ¿Cuánto mide el ancho?</p>${figure}`,
     steps: [
-      `Sea x el ancho, en centímetros. El largo mide x + ${k}.`,
-      `El área es el producto: x(x + ${k}) = ${area}.`,
+      "¿Qué nos piden? El ancho.",
+      "Fórmula: Área = largo × ancho.",
+      `Sustituye: x(x + ${k}) = ${area}.`,
       `Quita el paréntesis: x² + ${k}x − ${area} = 0.`,
-      `Factoriza. Busca dos números que sumen ${k} y multiplicados den −${area}: −${x} y ${otro}.`,
-      `(x − ${x})(x + ${otro}) = 0.`,
       `x = ${x} o x = −${otro}. Una longitud es positiva, así que x = ${x}.`,
       `Comprobación: ${x} · ${x + k} = ${area}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El ancho del rectángulo."),
+        formulaRow(`Área = ${ink("green", "largo")} × ${ink("purple", "ancho")}`),
+        subRow(`${ink("purple", "x")}(${ink("green", `x + ${k}`)}) = ${ink("teal", String(area))}`),
+        workRow("Quita el paréntesis", `${ink("purple", "x²")} + ${ink("green", `${k}x`)} − ${area} = 0`, "purple"),
+        workRow("Quédate con la medida positiva", `x = ${ink("purple", String(x))} o x = −${otro}`, "green"),
+        resultRow("x", String(x)),
+      ],
+      figure
+    ),
     answerHtml: `x = ${x}. El ancho mide ${x} cm.`,
     inputHelp: "Escribe la medida positiva, en centímetros.",
     verify: { type: "figura", template: "rect-num", data: { k, area } },
@@ -352,15 +452,37 @@ function makeRectNum(x, k) {
 
 function makePrismaNum(x, p, q) {
   const volume = x * p * q;
+  const prod = p * q;
+  const figure = figureHtml("prism", {
+    largo: { text: "x", tone: "purple" },
+    ancho: { text: String(p), tone: "green" },
+    alto: { text: String(q), tone: "orange" },
+  });
   return numberProblem(x, {
-    promptHtml: `<p class="story">Una caja mide x cm de largo, ${p} cm de ancho y ${q} cm de alto. Su volumen es ${volume} cm³. ¿Cuánto mide el largo?</p>`,
+    promptHtml: `<p class="story">Una caja mide x cm de largo, ${p} cm de ancho y ${q} cm de alto. Su volumen es ${volume} cm³. ¿Cuánto mide el largo?</p>${figure}`,
     steps: [
-      "El volumen de la caja es largo por ancho por alto.",
-      `x · ${p} · ${q} = ${volume}.`,
-      `${p} · ${q} = ${p * q}, así que ${p * q}x = ${volume}.`,
-      `Divide entre ${p * q}: x = ${volume} / ${p * q} = ${x}.`,
+      "¿Qué nos piden? El largo.",
+      "Fórmula: Volumen = largo × ancho × alto.",
+      `Sustituye: x · ${p} · ${q} = ${volume}.`,
+      `${p} · ${q} = ${prod}, así que ${prod}x = ${volume}.`,
+      `Divide entre ${prod}: x = ${x}.`,
       `Comprobación: ${x} · ${p} · ${q} = ${volume}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El largo de la caja."),
+        formulaRow(`Volumen = ${ink("purple", "largo")} × ${ink("green", "ancho")} × ${ink("orange", "alto")}`),
+        subRow(`${ink("purple", "x")} · ${ink("green", String(p))} · ${ink("orange", String(q))} = ${ink("teal", String(volume))}`),
+        workRow(
+          "Multiplica los números",
+          `${ink("green", String(p))} · ${ink("orange", String(q))} = ${ink("teal", String(prod))}, así que ${ink("teal", String(prod))}x = ${volume}`,
+          "teal"
+        ),
+        workRow("Divide", `x = ${volume} / ${prod} = ${ink("purple", String(x))}`, "purple"),
+        resultRow("x", String(x)),
+      ],
+      figure
+    ),
     answerHtml: `x = ${x}. El largo mide ${x} cm.`,
     inputHelp: "Escribe la medida, en centímetros.",
     verify: { type: "figura", template: "prisma-num", data: { p, q, volume } },
@@ -369,9 +491,25 @@ function makePrismaNum(x, p, q) {
 
 function makeCompuesto(x, k) {
   const total = x * x + k * x;
+  const figure = figureHtml("compound", {
+    lado: { text: "x", tone: "purple" },
+    extra: { text: String(k), tone: "green" },
+  });
+  const otro = x + k;
   return numberProblem(x, {
-    promptHtml: `<p class="story">Una tarjeta se forma con un cuadrado de lado x cm y, pegado a un lado, un rectángulo de ${k} cm por x cm. El área total es ${total} cm². ¿Cuánto mide x?</p>`,
+    promptHtml: `<p class="story">Una tarjeta se forma con un cuadrado de lado x cm y, pegado a un lado, un rectángulo de ${k} cm por x cm. El área total es ${total} cm². ¿Cuánto mide x?</p>${figure}`,
     steps: compuestoSteps(x, k, total),
+    board: boardOf(
+      [
+        askRow("La medida x de la tarjeta."),
+        formulaRow(`Área = ${ink("purple", "cuadrado")} + ${ink("green", "rectángulo")}`),
+        subRow(`${ink("purple", "x²")} + ${ink("green", `${k}x`)} = ${ink("teal", String(total))}`),
+        workRow("Pasa el total restando", `${ink("purple", "x²")} + ${ink("green", `${k}x`)} − ${total} = 0`, "purple"),
+        workRow("Quédate con la medida positiva", `x = ${ink("purple", String(x))} o x = −${otro}`, "green"),
+        resultRow("x", String(x)),
+      ],
+      figure
+    ),
     verify: { type: "figura", template: "compuesto-num", data: { k, total } },
   });
 }
@@ -391,15 +529,31 @@ function compuestoSteps(x, k, total) {
 
 function makeTriNum(base, x) {
   const area = (base * x) / 2;
+  const figure = figureHtml("tri", {
+    base: { text: String(base), tone: "purple" },
+    altura: { text: "h", tone: "orange" },
+  });
   return numberProblem(x, {
-    promptHtml: `<p class="story">Un triángulo tiene base de ${base} cm y área de ${area} cm². ¿Cuánto mide la altura?</p>`,
+    promptHtml: `<p class="story">Un triángulo tiene base de ${base} cm y área de ${area} cm². ¿Cuánto mide la altura?</p>${figure}`,
     steps: [
-      "Área = base × altura / 2.",
-      `${base} · h / 2 = ${area}.`,
+      "¿Qué nos piden? La altura.",
+      "Fórmula: Área = base × altura / 2.",
+      `Sustituye: ${base} · h / 2 = ${area}.`,
       `Multiplica por 2: ${base}h = ${area * 2}.`,
-      `Divide entre ${base}: h = ${area * 2} / ${base} = ${x}.`,
+      `Divide entre ${base}: h = ${x}.`,
       `Comprobación: ${base} · ${x} / 2 = ${area}.`,
     ],
+    board: boardOf(
+      [
+        askRow("La altura del triángulo."),
+        formulaRow(`Área = ${ink("purple", "base")} × ${ink("orange", "altura")} / 2`),
+        subRow(`${ink("purple", String(base))} · ${ink("orange", "h")} / 2 = ${ink("teal", String(area))}`),
+        workRow("Multiplica por 2", `${ink("purple", String(base))}h = ${ink("teal", String(area * 2))}`, "teal"),
+        workRow("Divide entre la base", `h = ${area * 2} / ${base} = ${ink("orange", String(x))}`, "orange"),
+        resultRow("h", String(x)),
+      ],
+      figure
+    ),
     answerHtml: `h = ${x}. La altura mide ${x} cm.`,
     inputHelp: "Escribe la altura, en centímetros.",
     verify: { type: "figura", template: "tri-num", data: { base, area } },
@@ -407,17 +561,30 @@ function makeTriNum(base, x) {
 }
 
 function makeCuadrado(x) {
+  const area = x * x;
+  const figure = figureHtml("square", { lado: { text: "x", tone: "purple" } });
   return numberProblem(x, {
-    promptHtml: `<p class="story">Un cuadrado tiene área de ${x * x} cm². ¿Cuánto mide su lado?</p>`,
+    promptHtml: `<p class="story">Un cuadrado tiene área de ${area} cm². ¿Cuánto mide su lado?</p>${figure}`,
     steps: [
-      "El área de un cuadrado es lado por lado: x².",
-      `x² = ${x * x}.`,
-      `x es la raíz positiva de ${x * x}, porque un lado no es negativo.`,
-      `${x} · ${x} = ${x * x}, así que x = ${x}.`,
+      "¿Qué nos piden? El lado.",
+      "Fórmula: Área = lado × lado.",
+      `Sustituye: x² = ${area}.`,
+      `La raíz positiva es x = ${x}.`,
+      `Comprobación: ${x} · ${x} = ${area}.`,
     ],
+    board: boardOf(
+      [
+        askRow("El lado del cuadrado."),
+        formulaRow(`Área = ${ink("purple", "lado")} × ${ink("purple", "lado")}`),
+        subRow(`${ink("purple", "x²")} = ${ink("teal", String(area))}`),
+        workRow("Raíz positiva", `${ink("purple", String(x))} · ${ink("purple", String(x))} = ${area}`, "purple"),
+        resultRow("x", String(x)),
+      ],
+      figure
+    ),
     answerHtml: `x = ${x}. El lado mide ${x} cm.`,
     inputHelp: "Escribe la medida positiva del lado.",
-    verify: { type: "figura", template: "cuadrado-num", data: { area: x * x } },
+    verify: { type: "figura", template: "cuadrado-num", data: { area } },
   });
 }
 
@@ -646,7 +813,7 @@ function dosNombres(rng) {
 export function lessonModelos() {
   return {
     despejes: [makeDespeje("vt", "v", 3), makeDespeje("perimetro", "l", 4), makeDespeje("triangulo", "h", 5)],
-    areas: [makeRectExpr(3), makeRectNum(5, 4), makeCompuesto(5, 3)],
+    areas: [makeRectExpr(3), makePrismaExpr(5, 4), makeRectNum(5, 4), makeCompuesto(5, 3)],
     variacion: [
       makeDirecta({ baseQty: 12, k: 4, x: 5 }),
       makeInversa({ w1: 4, h1: 6, w2: 3 }),

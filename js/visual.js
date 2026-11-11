@@ -1,8 +1,18 @@
-/** Cuaderno visual: la ecuación se mueve renglón por renglón. */
+/** Cuaderno visual: cada término que se mueve conserva su color. */
 
 import { add, frac, mul } from "./frac.js";
 
-let arrowSerial = 0;
+const TONES = ["purple", "green", "orange", "teal", "magenta", "blue"];
+const TONE_STYLE = {
+  purple: { ink: "#7a3ff0", band: "#f3e9ff" },
+  green: { ink: "#0d8a4a", band: "#e5f8ec" },
+  orange: { ink: "#d35400", band: "#fff0e4" },
+  teal: { ink: "#0c7a8a", band: "#e3f6f8" },
+  magenta: { ink: "#c2185b", band: "#fde8f0" },
+  blue: { ink: "#1554b0", band: "#e7f0ff" },
+  neutral: { ink: "#3d4d63", band: "#f7f1e4" },
+  result: { ink: "#14663a", band: "#e5f6ea" },
+};
 
 function esc(s) {
   return String(s ?? "")
@@ -36,13 +46,49 @@ function sideText(xCoef, constant, variable = "x") {
   return text || "0";
 }
 
-function withOp(base, opText) {
-  return `${base} ${opText}`.trim();
-}
-
 function monoX(coef) {
   const abs = Math.abs(coef);
   return abs === 1 ? "x" : `${abs}x`;
+}
+
+function tag(tone, text) {
+  return `{{${tone}:${text}}}`;
+}
+
+function plain(text) {
+  return String(text ?? "")
+    .replace(/\{\{[a-z]+:([\s\S]*?)\}\}/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function colorLeaving(text, abs, tone) {
+  const candidates = [`−${abs}`, `− ${abs}`, `+ ${abs}`, `+${abs}`, abs];
+  for (const candidate of candidates) {
+    const index = text.indexOf(candidate);
+    if (index < 0) continue;
+    const after = text[index + candidate.length] || "";
+    if (/[0-9x²]/.test(after)) continue;
+    return `${text.slice(0, index)}${tag(tone, candidate)}${text.slice(index + candidate.length)}`;
+  }
+  return text;
+}
+
+function colorConstant(text, value, tone) {
+  const abs = String(Math.abs(value));
+  const candidates = value < 0 ? [`− ${abs}`, `−${abs}`] : [`+ ${abs}`, `+${abs}`, abs];
+  for (const candidate of candidates) {
+    const index = text.indexOf(candidate);
+    if (index < 0) continue;
+    const after = text[index + candidate.length] || "";
+    if (/[0-9x²]/.test(after)) continue;
+    return `${text.slice(0, index)}${tag(tone, candidate)}${text.slice(index + candidate.length)}`;
+  }
+  return text;
+}
+
+function joinChunks(chunks) {
+  return chunks.filter(Boolean).join(" ");
 }
 
 /** Dos caminos para ax + b = cx + d. */
@@ -61,51 +107,60 @@ export function linearBoard(a, b, c, d, solution) {
 
 function balancePath(a, b, c, d, sol) {
   const rows = [{ left: sideText(a, b), right: sideText(c, d) }];
+  let toneAt = 0;
+  const nextTone = () => TONES[toneAt++ % TONES.length];
   let A = a;
   let B = b;
   let C = c;
   let D = d;
   if (C !== 0) {
-    const op = C > 0 ? `− ${monoX(C)}` : `+ ${monoX(-C)}`;
-    const label = C > 0 ? `Resta ${monoX(C)} en los dos lados` : `Suma ${monoX(-C)} en los dos lados`;
+    const tone = nextTone();
+    const abs = monoX(Math.abs(C));
+    const op = C > 0 ? `− ${abs}` : `+ ${abs}`;
+    const label = C > 0 ? `Resta ${abs} en los dos lados` : `Suma ${abs} en los dos lados`;
+    const prev = rows[rows.length - 1];
+    prev.right = colorLeaving(prev.right, abs, tone);
     rows.push({
-      left: withOp(sideText(A, B), op),
-      right: withOp(sideText(C, D), op),
-      hot: [op],
-      arrow: { op: C > 0 ? "−" : "+", label, dir: "same" },
+      left: `${sideText(A, B)} ${tag(tone, op)}`,
+      right: `${sideText(C, D)} ${tag(tone, op)}`,
+      step: { tone, label },
     });
     A -= C;
     C = 0;
     rows.push({
       left: sideText(A, B),
       right: sideText(0, D),
-      arrow: { op: "=", label: "Simplifica", dir: "same" },
+      step: { tone: "neutral", label: "Simplifica" },
     });
   }
   if (B !== 0) {
-    const op = B > 0 ? `− ${B}` : `+ ${-B}`;
-    const label = B > 0 ? `Resta ${B} en los dos lados` : `Suma ${-B} en los dos lados`;
+    const tone = nextTone();
+    const abs = String(Math.abs(B));
+    const op = B > 0 ? `− ${abs}` : `+ ${abs}`;
+    const label = B > 0 ? `Resta ${abs} en los dos lados` : `Suma ${abs} en los dos lados`;
+    const prev = rows[rows.length - 1];
+    prev.left = colorConstant(prev.left, B, tone);
+    prev.right = colorConstant(prev.right, B, tone);
     rows.push({
-      left: withOp(sideText(A, B), op),
-      right: withOp(sideText(0, D), op),
-      hot: [op],
-      arrow: { op: B > 0 ? "−" : "+", label, dir: "same" },
+      left: `${sideText(A, B)} ${tag(tone, op)}`,
+      right: `${sideText(0, D)} ${tag(tone, op)}`,
+      step: { tone, label },
     });
     D -= B;
     B = 0;
     rows.push({
       left: sideText(A, 0),
       right: sideText(0, D),
-      arrow: { op: "=", label: "Simplifica", dir: "same" },
+      step: { tone: "neutral", label: "Simplifica" },
     });
   }
   if (A !== 1) {
+    const tone = nextTone();
     const divisor = fmtInt(A);
     rows.push({
-      left: `${sideText(A, 0)} ÷ (${divisor})`,
-      right: `${sideText(0, D)} ÷ (${divisor})`,
-      hot: [`÷ (${divisor})`],
-      arrow: { op: "÷", label: `Divide entre ${divisor}`, dir: "same" },
+      left: `${sideText(A, 0)} ÷ (${tag(tone, divisor)})`,
+      right: `${sideText(0, D)} ÷ (${tag(tone, divisor)})`,
+      step: { tone, label: `Divide entre ${divisor}` },
     });
   }
   finishRow(rows, sol);
@@ -114,70 +169,82 @@ function balancePath(a, b, c, d, sol) {
 
 function finishRow(rows, sol) {
   const last = rows[rows.length - 1];
-  if (last && last.left === "x" && last.right === sol) {
+  if (last && plain(last.left) === "x" && plain(last.right) === sol && !last.step) {
     last.result = true;
+    last.step = { tone: "result", label: "Resultado" };
     return;
   }
   rows.push({
     left: "x",
     right: sol,
     result: true,
-    arrow: { op: "=", label: "Resultado", dir: "same" },
+    step: { tone: "result", label: "Resultado" },
   });
 }
 
 function passPath(a, b, c, d, sol) {
   if (b === 0 && c === 0) return null;
   const rows = [{ left: sideText(a, b), right: sideText(c, d) }];
+  let toneAt = 0;
+  const nextTone = () => TONES[toneAt++ % TONES.length];
   let A = a;
   let B = b;
   let D = d;
   if (c !== 0) {
-    const gone = c > 0 ? `− ${monoX(c)}` : `+ ${monoX(-c)}`;
+    const tone = nextTone();
+    const abs = monoX(Math.abs(c));
+    const arrived = c > 0 ? `− ${abs}` : `+ ${abs}`;
+    const label = `La ${abs} ${c > 0 ? "pasa restando" : "pasa sumando"}`;
+    const prev = rows[rows.length - 1];
+    prev.right = colorLeaving(prev.right, abs, tone);
     A -= c;
+    const leftShown = joinChunks([sideText(a, 0) === "0" ? "" : sideText(a, 0), tag(tone, arrived), B === 0 ? "" : B > 0 ? `+ ${B}` : `− ${Math.abs(B)}`]);
     rows.push({
-      left: sideText(A, B),
+      left: leftShown,
       right: sideText(0, D),
-      hot: [],
-      arrow: {
-        op: c > 0 ? "−" : "+",
-        label: c > 0 ? `${monoX(c)} pasa restando` : `${monoX(-c)} pasa sumando`,
-        dir: "to-left",
-      },
+      step: { tone, label },
     });
-    void gone;
-  }
-  if (B !== 0) {
-    const passed = B > 0 ? `− ${B}` : `+ ${-B}`;
-    const shown = `${sideText(0, D)} ${passed}`;
-    const nextD = D - B;
-    rows.push({
-      left: sideText(A, 0),
-      right: shown,
-      hot: [passed],
-      arrow: {
-        op: B > 0 ? "−" : "+",
-        label: B > 0 ? `+${B} pasa restando` : `−${-B} pasa sumando`,
-        dir: "to-right",
-      },
-    });
-    D = nextD;
-    const simplified = sideText(0, D);
-    if (simplified !== shown) {
+    const simplified = sideText(A, B);
+    if (plain(leftShown) !== simplified) {
       rows.push({
-        left: sideText(A, 0),
-        right: simplified,
-        arrow: { op: "=", label: "Calcula ese lado", dir: "same" },
+        left: simplified,
+        right: sideText(0, D),
+        step: { tone: "neutral", label: "Se juntan los términos semejantes" },
       });
     }
   }
+  if (B !== 0) {
+    const tone = nextTone();
+    const abs = String(Math.abs(B));
+    const passed = B > 0 ? `− ${abs}` : `+ ${abs}`;
+    const label = B > 0 ? `El +${abs} pasa restando` : `El −${abs} pasa sumando`;
+    const prev = rows[rows.length - 1];
+    prev.left = colorConstant(prev.left, B, tone);
+    const oldD = D;
+    D -= B;
+    const rightShown = oldD === 0 ? tag(tone, passed) : `${sideText(0, oldD)} ${tag(tone, passed)}`;
+    rows.push({
+      left: sideText(A, 0),
+      right: rightShown,
+      step: { tone, label },
+    });
+    const simplified = sideText(0, D);
+    if (plain(rightShown) !== simplified) {
+      rows.push({
+        left: sideText(A, 0),
+        right: simplified,
+        step: { tone: "neutral", label: "Calcula ese lado" },
+      });
+    }
+    B = 0;
+  }
   if (A !== 1) {
+    const tone = nextTone();
     const divisor = fmtInt(A);
     rows.push({
       left: "x",
-      right: `${sideText(0, D)} ÷ (${divisor})`,
-      hot: [`÷ (${divisor})`],
-      arrow: { op: "÷", label: `Divide entre ${divisor}`, dir: "same" },
+      right: `${sideText(0, D)} ÷ (${tag(tone, divisor)})`,
+      step: { tone, label: `Divide entre ${divisor}` },
     });
   }
   finishRow(rows, sol);
@@ -192,17 +259,18 @@ function substitution(a, b, c, d, solution) {
     title: "Sustitución",
     lines: [
       { left: sideText(a, b), right: sideText(c, d) },
-      { left: plug(a, b, sol), right: plug(c, d, sol), hot: [`(${sol})`] },
+      { left: plug(a, b, sol), right: plug(c, d, sol) },
       { left: fmtFrac(leftValue), right: fmtFrac(rightValue), ok: true },
     ],
   };
 }
 
 function plug(coef, constant, sol) {
+  const shown = tag("magenta", `(${sol})`);
   const parts = [];
   if (coef !== 0) {
     const abs = Math.abs(coef);
-    const core = `${abs === 1 ? "" : abs}(${sol})`;
+    const core = `${abs === 1 ? "" : abs}${shown}`;
     parts.push(coef < 0 ? `−${core}` : core);
   }
   if (constant !== 0) {
@@ -234,19 +302,28 @@ function asEquation(text) {
   return { left, right };
 }
 
-function opFrom(text) {
-  const t = text.toLowerCase();
-  if (t.includes("divide") || t.includes("÷")) return "÷";
-  if (t.includes("multiplica") || t.includes("distrib")) return "×";
-  if (t.includes("resta") || t.includes("pasa restando")) return "−";
-  if (t.includes("suma") || t.includes("pasa sumando")) return "+";
-  return "→";
+function extractTerm(note) {
+  const cleaned = note.replace(/\.$/, "");
+  let match = cleaned.match(/(?:resta|suma)\s+([0-9]+\s*[a-z²]*|[a-z](?:²)?)/i);
+  if (match) return match[1].replace(/\s/g, "");
+  match = cleaned.match(/entre\s+([0-9]+|[a-z])/i);
+  if (match) return match[1];
+  match = cleaned.match(/([0-9]*[a-z](?:²)?|[0-9]+)\s+pasa/i);
+  if (match) return match[1];
+  return "";
+}
+
+function colorNote(text, term, tone) {
+  if (!term || !text) return text;
+  return colorLeaving(text, term, tone);
 }
 
 /** Si el problema no trae un tablero propio, el cuaderno se arma con sus pasos. */
 export function notebookFromSteps(steps) {
   const rows = [];
+  let toneAt = 0;
   let checkText = "";
+  const nextTone = () => TONES[toneAt++ % TONES.length];
   for (const step of steps || []) {
     const text = stripStep(step);
     if (!text) continue;
@@ -254,20 +331,31 @@ export function notebookFromSteps(steps) {
       checkText = text.replace(/^Comprobación:\s*/i, "");
       continue;
     }
+    const resultLine = /^solución|^resultado|^expresión reducida/i.test(text);
     const eq = asEquation(text);
     if (!eq) {
-      rows.push({ note: text });
+      if (resultLine) {
+        const value = text.replace(/^(Resultado|Solución|Expresión reducida)\s*:\s*/i, "").replace(/\.$/, "");
+        rows.push({ value, result: true, step: { tone: "result", label: "Resultado" } });
+      } else {
+        rows.push({ step: { tone: nextTone(), label: text.replace(/\.$/, "") } });
+      }
       continue;
     }
     const prev = rows[rows.length - 1];
-    const result = /^solución|^resultado/i.test(text);
-    rows.push({
-      ...eq,
-      result,
-      arrow: prev && prev.note
-        ? { op: opFrom(prev.note), label: prev.note.replace(/\.$/, "").slice(0, 72), dir: "same" }
-        : null,
-    });
+    const tone = prev?.step?.tone && prev.step.tone !== "result" ? prev.step.tone : nextTone();
+    const term = prev?.step?.label ? extractTerm(prev.step.label) : "";
+    const colored = {
+      left: colorNote(eq.left, term, tone),
+      right: colorNote(eq.right, term, tone),
+    };
+    if (resultLine) {
+      rows.push({ ...colored, result: true, step: { tone: "result", label: "Resultado" } });
+    } else if (prev?.step?.label && prev.left == null && prev.value == null) {
+      rows.push({ ...colored, step: { tone, label: prev.step.label } });
+    } else {
+      rows.push(colored);
+    }
   }
   const check = checkText ? { title: "Sustitución", note: checkText, lines: [] } : null;
   return {
@@ -283,59 +371,42 @@ export function beatCount(board) {
   return rows + (board.check ? 1 : 0);
 }
 
-function paint(text, hot = []) {
-  let html = esc(text).replace(/\[\[(-?\d+)\/(\d+)\]\]/g, (_, n, d) => {
+function formatPlain(text) {
+  return esc(text).replace(/\[\[(-?\d+)\/(\d+)\]\]/g, (_, n, d) => {
     const neg = n.startsWith("-");
     const num = neg ? n.slice(1) : n;
     return `${neg ? "−" : ""}<span class="frac"><span class="n">${num}</span><span class="d">${d}</span></span>`;
   });
-  const marks = [...hot].filter(Boolean).sort((a, b) => b.length - a.length);
-  const chosen = [];
-  for (const mark of marks) {
-    if (chosen.some((kept) => kept.includes(mark))) continue;
-    chosen.push(mark);
-  }
-  for (const mark of chosen) {
-    const safe = esc(mark).replace(/\[\[(-?\d+)\/(\d+)\]\]/g, (_, n, d) => {
-      const neg = n.startsWith("-");
-      const num = neg ? n.slice(1) : n;
-      return `${neg ? "−" : ""}<span class="frac"><span class="n">${num}</span><span class="d">${d}</span></span>`;
-    });
-    if (!safe || !html.includes(safe)) continue;
-    html = html.split(safe).join(`<span class="hot">${safe}</span>`);
-  }
-  return html;
 }
 
-function arrowSvg(arrow, index) {
-  if (!arrow) return "";
-  const id = `flecha-${arrowSerial}-${index}`;
-  const dir = arrow.dir || "same";
-  const start = dir === "to-right" ? 48 : dir === "to-left" ? 300 : 250;
-  const end = dir === "to-right" ? 300 : dir === "to-left" ? 48 : 250;
-  const hue = { "−": "#e07a3d", "+": "#0c8a7a", "×": "#7b4bb3", "÷": "#1d6fd6", "=": "#1554b0", "→": "#c62828" }[arrow.op] || "#c62828";
-  return `<div class="move" style="color:${hue}">
-    <svg viewBox="0 0 360 72" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <defs>
-        <marker id="${id}" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto">
-          <path d="M0,0 L16,8 L0,16 Z" fill="${hue}"></path>
-        </marker>
-      </defs>
-      <path d="M${start} 8 C ${start} 36, ${end} 14, ${end} 50" fill="none" stroke="${hue}" stroke-width="6" stroke-linecap="round" marker-end="url(#${id})"></path>
-    </svg>
-    <span class="move-op">${esc(arrow.op || "")}</span>
-    <span class="move-label">${esc(arrow.label || "")}</span>
-  </div>`;
+function paint(text) {
+  return String(text ?? "")
+    .split(/(\{\{[a-z]+:[\s\S]*?\}\})/g)
+    .map((part) => {
+      const token = part.match(/^\{\{([a-z]+):([\s\S]*)\}\}$/);
+      if (!token) return formatPlain(part);
+      return `<span class="term t-${token[1]}">${formatPlain(token[2])}</span>`;
+    })
+    .join("");
 }
 
 function rowHtml(row) {
-  if (row.note) return `<p class="ink-note">${esc(row.note)}</p>`;
-  const body = `<div class="eq-row ${row.result ? "is-result" : ""}">
-      <span class="eq-side left">${paint(row.left, row.hot)}</span>
-      <span class="eq-sign">=</span>
-      <span class="eq-side right">${row.result ? `<span class="result-pill">${paint(row.right, row.hot)} <span class="check-mark" aria-label="correcto">✓</span></span>` : paint(row.right, row.hot)}</span>
-    </div>`;
-  return body;
+  if (row.note && row.left == null && row.text == null && !row.step) return `<p class="ink-note">${esc(row.note)}</p>`;
+  const tone = row.result ? "result" : row.step?.tone || "";
+  const style = TONE_STYLE[tone] ? ` style="--ink:${TONE_STYLE[tone].ink};--band:${TONE_STYLE[tone].band}"` : "";
+  const label = row.step?.label ? `<p class="step-label">➜ ${esc(row.step.label)}</p>` : "";
+  let body = "";
+  if (row.result && row.value != null && row.left == null) {
+    body = `<div class="result-box">${paint(row.value)} <span class="check-mark" aria-label="correcto">✓</span></div>`;
+  } else if (row.result) {
+    body = `<div class="result-box">${paint(row.left)} <span class="eq-sign">=</span> ${paint(row.right)} <span class="check-mark" aria-label="correcto">✓</span></div>`;
+  } else if (row.text != null) {
+    body = `<p class="step-text">${paint(row.text)}</p>`;
+  } else if (row.left != null) {
+    body = `<div class="eq-line"><span class="eq-side left">${paint(row.left)}</span><span class="eq-sign">=</span><span class="eq-side right">${paint(row.right)}</span></div>`;
+  }
+  const cls = ["step-card", row.step && !row.result ? "has-move" : "", row.result ? "is-result" : ""].filter(Boolean).join(" ");
+  return `<div class="${cls}"${style}>${label}${body}</div>`;
 }
 
 function checkHtml(check) {
@@ -344,21 +415,22 @@ function checkHtml(check) {
     return `<aside class="subst"><h3>Comprobación</h3><p class="ink-note">${esc(check.note)} <span class="check-mark">✓</span></p></aside>`;
   }
   const lines = (check.lines || [])
-    .map((line) => `<div class="eq-row ${line.ok ? "is-ok" : ""}">
-        <span class="eq-side left">${paint(line.left, line.hot)}</span>
-        <span class="eq-sign">=</span>
-        <span class="eq-side right">${line.ok ? `<span class="result-pill">${paint(line.right, line.hot)} <span class="check-mark">✓</span></span>` : paint(line.right, line.hot)}</span>
-      </div>`)
+    .map((line) =>
+      rowHtml({
+        left: line.left,
+        right: line.right,
+        result: Boolean(line.ok),
+        step: line.ok ? { tone: "result", label: "Los dos lados coinciden" } : null,
+      })
+    )
     .join("");
   return `<aside class="subst"><h3>${esc(check.title || "Sustitución")}</h3>${lines}</aside>`;
 }
 
 function pathHtml(path, shown) {
-  arrowSerial += 1;
   const chunks = [];
   path.rows.forEach((row, index) => {
     if (index >= shown) return;
-    if (index > 0 && row.arrow) chunks.push(arrowSvg(row.arrow, index));
     chunks.push(rowHtml(row));
   });
   const head = path.title ? `<h3 class="path-title">${esc(path.title)}</h3>${path.subtitle ? `<p class="path-sub">${esc(path.subtitle)}</p>` : ""}` : "";

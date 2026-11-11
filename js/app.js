@@ -3,7 +3,7 @@
 import { findSubtopic } from "./catalog.js";
 import { render } from "./render.js";
 import { createState, loadProgress, reduce, saveProgress } from "./state.js";
-import { mountPizarra } from "./pizarra.js";
+import { exerciseCaption, mountPizarra } from "./pizarra.js";
 
 function memoryStorage() {
   const data = new Map();
@@ -99,7 +99,11 @@ export function boot(doc = document, storage = typeof localStorage !== "undefine
     if (!button || !root.contains(button)) return;
     const name = button.dataset.action;
     if (name === "pizarra") {
-      board?.open();
+      const problem =
+        state.view === "examen-curso" && state.exam && !state.exam.record
+          ? state.exam.questions[state.exam.index]
+          : state.practice?.problem;
+      board?.open(exerciseCaption(problem));
       return;
     }
     if (name === "nav") dispatch({ type: "nav", view: button.dataset.view });

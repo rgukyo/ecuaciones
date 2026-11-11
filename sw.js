@@ -1,4 +1,4 @@
-const CACHE = "ecuaciones-v5";
+const CACHE = "ecuaciones-v6";
 const ASSETS = [
   "./",
   "./index.html",
@@ -18,6 +18,7 @@ const ASSETS = [
   "./js/visual.js",
   "./js/pasos.js",
   "./js/pizarra.js",
+  "./js/figuras.js",
   "./fonts/Kalam-Regular.ttf",
   "./fonts/Kalam-Bold.ttf",
   "./fonts/OFL.txt",

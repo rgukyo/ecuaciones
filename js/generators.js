@@ -3,6 +3,7 @@
 import { findSubtopic } from "./catalog.js";
 import { generateAreas, generateDespejes, generateVariacion, lessonModelos } from "./modelos.js";
 import { linearBoard } from "./visual.js";
+import { askRow, boardOf, figureHtml, formulaRow, ink, resultRow, subRow, workRow } from "./figuras.js";
 import {
   add,
   div,
@@ -546,16 +547,32 @@ function buildPerimetro({ extra, perimetro }) {
   if (solved.solution.d !== 1 || solved.solution.n <= 0 || extra <= 0) throw new Error("perímetro");
   const ancho = solved.solution.n;
   const text = `Una cancha rectangular mide ${extra} m más de largo que de ancho. Su perímetro es ${perimetro} m. ¿Cuánto mide el ancho?`;
+  const figure = figureHtml("rect", {
+    ancho: { text: "x", tone: "purple" },
+    largo: { text: `x + ${extra}`, tone: "green" },
+  });
   return withNumber(solved.solution, {
-    promptHtml: `<p class="story">${esc(text)}</p>`,
+    promptHtml: `<p class="story">${esc(text)}</p>${figure}`,
     steps: [
-      "Sea x el ancho, en metros. El largo mide x + " + extra + ".",
-      `El perímetro suma los cuatro lados: 2(x + (x + ${extra})) = ${perimetro}.`,
+      "¿Qué nos piden? El ancho.",
+      "Fórmula: Perímetro = 2(largo + ancho).",
+      `Sustituye: 2(x + (x + ${extra})) = ${perimetro}.`,
       `Dentro del paréntesis: 2(${linHtml(2, extra)}) = ${perimetro}.`,
       `Distribuye el 2: ${eqHtml(4, 2 * extra, 0, perimetro)}.`,
       ...solved.steps,
       `El ancho mide ${ancho} m y el largo mide ${ancho + extra} m.`,
     ],
+    board: boardOf(
+      [
+        askRow("El ancho de la cancha."),
+        formulaRow(`Perímetro = 2(${ink("green", "largo")} + ${ink("purple", "ancho")})`),
+        subRow(`2(${ink("purple", "x")} + (${ink("purple", "x")} + ${ink("green", String(extra))})) = ${ink("teal", String(perimetro))}`),
+        workRow("Junta el paréntesis", `2(${ink("purple", linHtml(2, extra))}) = ${perimetro}`, "purple"),
+        workRow("Distribuye el 2", eqHtml(4, 2 * extra, 0, perimetro), "teal"),
+        resultRow("x", String(ancho)),
+      ],
+      figure
+    ),
     answerHtml: `x = ${ancho}. El ancho mide ${ancho} m.`,
     inputHelp: "Escribe la medida. También vale «6 m».",
     verify: {
