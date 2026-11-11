@@ -78,8 +78,8 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(simple, /Ver de nuevo/);
   assert.match(simple, /Método 01/);
   assert.match(simple, /Método 02/);
-  assert.match(simple, /pasa restando/);
-  assert.match(simple, /Sustitución/);
+  assert.match(simple, /pasa[\s\S]{0,80}restando/);
+  assert.match(simple, /Comprueba/);
   assert.match(simple, /Clave/);
   assert.equal(simple.includes('class="move"'), false);
 
@@ -113,7 +113,7 @@ test("la app carga y cada módulo se dibuja", () => {
   assert.match(examen, /Despejes de fórmulas/);
   assert.match(examen, /Áreas y volúmenes/);
   assert.match(examen, /Variación y reparto/);
-  assert.match(read("sw.js"), /ecuaciones-v6/);
+  assert.match(read("sw.js"), /ecuaciones-v7/);
   assert.match(read("js/pizarra.js"), /Borrar todo/);
   assert.match(read("js/pizarra.js"), /pizarra-eq/);
   assert.match(read("js/pizarra.js"), /destination-out/);
